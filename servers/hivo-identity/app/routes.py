@@ -305,9 +305,12 @@ def register(req: RegisterRequest):
 def register_verify(req: VerifyRequest):
     now_iso = _now_iso()
     with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM pending_registrations WHERE expires_at <= ?", (now_iso,)
+        )
         row = conn.execute(
-            "SELECT handle, jwk_pub, expires_at FROM pending_registrations WHERE challenge = ? AND expires_at > ?",
-            (req.challenge, now_iso),
+            "SELECT handle, jwk_pub, expires_at FROM pending_registrations WHERE challenge = ?",
+            (req.challenge,),
         ).fetchone()
         if not row:
             return _err(400, "challenge_expired", "Challenge not found or has expired")
@@ -386,9 +389,11 @@ def token_refresh(req: RefreshRequest):
     now_iso = _now_iso()
 
     with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM refresh_tokens WHERE expires_at <= ?", (now_iso,)
+        )
         row = conn.execute(
-            "SELECT sub FROM refresh_tokens WHERE token_hash = ? AND expires_at > ?",
-            (token_hash, now_iso),
+            "SELECT sub FROM refresh_tokens WHERE token_hash = ?", (token_hash,)
         ).fetchone()
         if not row:
             return _err(401, "invalid_token", "Refresh token is invalid or expired")
