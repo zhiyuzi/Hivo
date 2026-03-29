@@ -38,6 +38,7 @@ Docs: GET /README.md
 - GET /me — Current identity info
 - GET /.well-known/openid-configuration — OIDC Discovery metadata
 - GET /jwks.json — Signing public keys
+- GET /health — Health check
 
 ## Identity Model
 - Primary key: sub
@@ -147,11 +148,66 @@ Response:
 }
 ```
 
+## Public Keys
+
+### GET /jwks.json
+
+Returns the service's Ed25519 signing public keys in JWKS format.
+Downstream services use this to verify access tokens without calling back to agent-identity.
+
+Response:
+```json
+{
+  "keys": [
+    {"kty": "OKP", "crv": "Ed25519", "x": "<base64url>", "kid": "<uuid>"}
+  ]
+}
+```
+
+### GET /.well-known/openid-configuration
+
+OIDC Discovery metadata (minimal subset). Use this to discover endpoint URLs programmatically.
+
+Response:
+```json
+{
+  "issuer": "<ISSUER_URL>",
+  "token_endpoint": "<ISSUER_URL>/token",
+  "jwks_uri": "<ISSUER_URL>/jwks.json",
+  "userinfo_endpoint": "<ISSUER_URL>/me",
+  "registration_endpoint": "<ISSUER_URL>/register",
+  "token_endpoint_auth_methods_supported": ["private_key_jwt"],
+  "token_endpoint_auth_signing_alg_values_supported": ["EdDSA"]
+}
+```
+
+## Health
+
+### GET /health
+
+Returns `200 OK` when the service is running.
+
+Response:
+```json
+{"status": "ok"}
+```
+
 ## Error Format
 
 ```json
 {"error": "error_code", "message": "Human readable message"}
 ```
+
+Common error codes:
+
+| Status | error | Scenario |
+|--------|-------|----------|
+| 400 | `invalid_assertion` | /token JWT assertion malformed or signature invalid |
+| 400 | `challenge_expired` | /register/verify challenge not found or expired |
+| 400 | `challenge_failed` | /register/verify signature verification failed |
+| 401 | `invalid_token` | /me or /token/refresh token invalid or expired |
+| 409 | `handle_taken` | /register handle already registered |
+| 422 | `validation_error` | Request parameters invalid (bad handle format, etc.) |
 """
 
 
