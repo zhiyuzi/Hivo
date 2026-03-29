@@ -12,6 +12,12 @@ def init_db(db_path: str | None = None) -> None:
     path = db_path or get_db_path()
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with sqlite3.connect(path) as conn:
+        # Migration: add audience column to existing DBs
+        try:
+            conn.execute("ALTER TABLE refresh_tokens ADD COLUMN audience TEXT NOT NULL DEFAULT ''")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # column already exists
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS subjects (
                 sub          TEXT PRIMARY KEY,

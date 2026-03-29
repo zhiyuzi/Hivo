@@ -28,6 +28,7 @@ def test_token_success(client, registered_agent):
     r = client.post("/token", json={
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
         "assertion": assertion,
+        "audience": "test-service",
     })
     assert r.status_code == 200
     data = r.json()
@@ -43,6 +44,7 @@ def test_token_invalid_sub(client, agent_key):
     r = client.post("/token", json={
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
         "assertion": assertion,
+        "audience": "test-service",
     })
     assert r.status_code == 400
     assert r.json()["error"] == "invalid_assertion"
@@ -56,6 +58,7 @@ def test_token_wrong_key(client, registered_agent):
     r = client.post("/token", json={
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
         "assertion": assertion,
+        "audience": "test-service",
     })
     assert r.status_code == 400
     assert r.json()["error"] == "invalid_assertion"
@@ -68,6 +71,7 @@ def test_token_expired_assertion(client, registered_agent):
     r = client.post("/token", json={
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
         "assertion": assertion,
+        "audience": "test-service",
     })
     assert r.status_code == 400
     assert r.json()["error"] == "invalid_assertion"
@@ -80,6 +84,7 @@ def test_refresh_token(client, registered_agent):
     r = client.post("/token", json={
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
         "assertion": assertion,
+        "audience": "test-service",
     })
     refresh_token = r.json()["refresh_token"]
 
@@ -99,6 +104,7 @@ def test_refresh_token_single_use(client, registered_agent):
     r = client.post("/token", json={
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
         "assertion": assertion,
+        "audience": "test-service",
     })
     refresh_token = r.json()["refresh_token"]
 
