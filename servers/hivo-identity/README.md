@@ -98,7 +98,7 @@ WantedBy=multi-user.target
 
 ### 5. Data directory
 
-The SQLite database is created automatically at startup. Ensure the data directory is writable and backed up in production.
+The SQLite database is created automatically at startup. On first boot, the service also generates an Ed25519 signing key pair and stores it in the database — no manual key generation needed. Ensure the data directory is writable and backed up in production (the signing key lives here).
 
 ---
 
