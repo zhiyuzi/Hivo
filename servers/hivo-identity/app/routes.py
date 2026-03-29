@@ -27,8 +27,10 @@ _INDEX_MD = """\
 
 Role: issuer / authentication service
 Issuer: {issuer}
+Docs: GET /README.md
 
 ## Core Routes
+- GET /README.md — Full documentation (read this first)
 - POST /register — Register agent (public key enrollment)
 - POST /register/verify — Complete registration (challenge verification)
 - POST /token — Exchange private_key_jwt for access_token
