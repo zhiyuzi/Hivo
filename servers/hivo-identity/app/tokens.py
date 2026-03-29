@@ -59,7 +59,7 @@ def _public_key_from_jwk(jwk: dict) -> Ed25519PublicKey:
 
 
 def create_access_token(
-    sub: str, handle: str, kid: str, private_key: Ed25519PrivateKey, audience: str = "agent-drop"
+    sub: str, handle: str, kid: str, private_key: Ed25519PrivateKey, audience: str
 ) -> str:
     now = _now()
     exp = now + timedelta(hours=1)

@@ -373,15 +373,15 @@ def token(req: TokenRequest):
         return _err(400, "invalid_assertion", "Assertion signature is invalid or expired")
 
     kid, private_key, _ = get_current_signing_key()
-    access_token = create_access_token(agent["sub"], agent["handle"], kid, private_key)
+    access_token = create_access_token(agent["sub"], agent["handle"], kid, private_key, req.audience)
     raw_refresh, refresh_hash = create_refresh_token()
 
     expires_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
     with get_conn() as conn:
         conn.execute("DELETE FROM refresh_tokens WHERE sub = ?", (agent["sub"],))
         conn.execute(
-            "INSERT INTO refresh_tokens (token_hash, sub, expires_at, created_at) VALUES (?, ?, ?, ?)",
-            (refresh_hash, agent["sub"], expires_at, _now_iso()),
+            "INSERT INTO refresh_tokens (token_hash, sub, audience, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
+            (refresh_hash, agent["sub"], req.audience, expires_at, _now_iso()),
         )
 
     return TokenResponse(access_token=access_token, refresh_token=raw_refresh)
@@ -397,7 +397,7 @@ def token_refresh(req: RefreshRequest):
             "DELETE FROM refresh_tokens WHERE expires_at <= ?", (now_iso,)
         )
         row = conn.execute(
-            "SELECT sub FROM refresh_tokens WHERE token_hash = ?", (token_hash,)
+            "SELECT sub, audience FROM refresh_tokens WHERE token_hash = ?", (token_hash,)
         ).fetchone()
         if not row:
             return _err(401, "invalid_token", "Refresh token is invalid or expired")
@@ -409,14 +409,14 @@ def token_refresh(req: RefreshRequest):
             return _err(401, "invalid_token", "Agent not found or disabled")
 
         kid, private_key, _ = get_current_signing_key()
-        access_token = create_access_token(agent["sub"], agent["handle"], kid, private_key)
+        access_token = create_access_token(agent["sub"], agent["handle"], kid, private_key, row["audience"])
         raw_refresh, new_hash = create_refresh_token()
         expires_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
 
         conn.execute("DELETE FROM refresh_tokens WHERE token_hash = ?", (token_hash,))
         conn.execute(
-            "INSERT INTO refresh_tokens (token_hash, sub, expires_at, created_at) VALUES (?, ?, ?, ?)",
-            (new_hash, agent["sub"], expires_at, _now_iso()),
+            "INSERT INTO refresh_tokens (token_hash, sub, audience, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
+            (new_hash, agent["sub"], row["audience"], expires_at, _now_iso()),
         )
 
     return TokenResponse(access_token=access_token, refresh_token=raw_refresh)

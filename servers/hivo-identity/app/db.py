@@ -44,6 +44,7 @@ def init_db(db_path: str | None = None) -> None:
             CREATE TABLE IF NOT EXISTS refresh_tokens (
                 token_hash TEXT PRIMARY KEY,
                 sub        TEXT NOT NULL,
+                audience   TEXT NOT NULL,
                 expires_at TEXT NOT NULL,
                 created_at TEXT NOT NULL
             );
