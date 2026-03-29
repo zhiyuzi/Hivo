@@ -3,11 +3,11 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "I want to register my agent with agent-identity. My handle should be 'mybot@acme' and the identity service is at https://id.agentinfra.cloud.",
-      "expected_output": "Runs register.py with the handle and issuer URL, shows the sub and confirmation that credentials were written to assets/. Warns the user not to commit private_key.pem.",
+      "prompt": "I want to register my agent with agent-identity. My handle should be 'mybot@acme'.",
+      "expected_output": "Runs register.py with just the handle (no URL), letting the script read issuer_url from assets/config.json. Shows the sub and confirms credentials were written to assets/.",
       "files": [],
       "expectations": [
-        "Runs scripts/register.py with arguments mybot@acme and https://id.agentinfra.cloud",
+        "Runs scripts/register.py with handle mybot@acme (no hardcoded URL in the command)",
         "Shows or mentions the sub identifier returned",
         "Warns that private_key.pem must not be committed"
       ]
