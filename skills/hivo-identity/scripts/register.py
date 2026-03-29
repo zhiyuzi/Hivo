@@ -6,12 +6,12 @@ Usage:
     python scripts/register.py <handle> [issuer_url]
 
     handle      e.g. myagent@acme  (name@namespace, letters/digits/hyphens, 2-32 chars each)
-    issuer_url  default: https://id.agentinfra.cloud
+    issuer_url  default: read from assets/config.json, fallback https://id.agentinfra.cloud
 
 Writes to assets/:
     private_key.pem   Ed25519 private key  — KEEP SECRET, never commit
-    public_key.jwk    Corresponding public key (JWK)
-    identity.json     Registration result: sub, handle, iss
+    public_key.jwk    Corresponding public key (JWK)   — gitignored, regenerable
+    identity.json     Registration result: sub, handle, iss  — gitignored, per-deployment
 """
 
 import base64
@@ -22,7 +22,17 @@ import urllib.request
 from pathlib import Path
 
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
-DEFAULT_ISSUER = "https://id.agentinfra.cloud"
+_FALLBACK_ISSUER = "https://id.agentinfra.cloud"
+
+
+def _default_issuer() -> str:
+    config_path = ASSETS_DIR / "config.json"
+    if config_path.exists():
+        try:
+            return json.loads(config_path.read_text(encoding="utf-8")).get("issuer_url", _FALLBACK_ISSUER)
+        except Exception:
+            pass
+    return _FALLBACK_ISSUER
 
 
 def _b64url(data: bytes) -> str:
@@ -79,7 +89,7 @@ def main() -> None:
         sys.exit(1)
 
     handle = sys.argv[1]
-    issuer_url = sys.argv[2].rstrip("/") if len(sys.argv) > 2 else DEFAULT_ISSUER
+    issuer_url = sys.argv[2].rstrip("/") if len(sys.argv) > 2 else _default_issuer()
 
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
