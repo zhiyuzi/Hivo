@@ -284,7 +284,11 @@ def jwks():
 
 @router.post("/register", response_model=RegisterResponse, status_code=201)
 def register(req: RegisterRequest):
+    now_iso = _now_iso()
     with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM pending_registrations WHERE expires_at <= ?", (now_iso,)
+        )
         existing = conn.execute(
             "SELECT sub FROM subjects WHERE handle = ?", (req.handle,)
         ).fetchone()
