@@ -1,0 +1,38 @@
+{
+  "skill_name": "agent-identity-credential",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to register my agent with agent-identity. My handle should be 'mybot@acme'.",
+      "expected_output": "Runs register.py with just the handle (no URL), letting the script read issuer_url from assets/config.json. Shows the sub and confirms credentials were written to assets/.",
+      "files": [],
+      "expectations": [
+        "Runs scripts/register.py with handle mybot@acme (no hardcoded URL in the command)",
+        "Shows or mentions the sub identifier returned",
+        "Warns that private_key.pem must not be committed"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Get me an access token so I can call a service.",
+      "expected_output": "Runs get_token.py, captures the token, and shows how to use it as a Bearer token.",
+      "files": [],
+      "expectations": [
+        "Runs scripts/get_token.py",
+        "Shows or uses the returned access_token",
+        "Provides the Bearer token format for use with downstream services"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "What is my current agent identity? What sub do I have?",
+      "expected_output": "Reads assets/identity.json and shows the user their sub, handle, and iss.",
+      "files": [],
+      "expectations": [
+        "Reads or displays contents of assets/identity.json",
+        "Shows the sub value",
+        "Shows the handle value"
+      ]
+    }
+  ]
+}
