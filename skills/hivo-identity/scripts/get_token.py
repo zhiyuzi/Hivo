@@ -3,7 +3,9 @@
 Obtain an access token for this agent from agent-identity.
 
 Usage:
-    python scripts/get_token.py
+    python scripts/get_token.py <audience>
+
+    audience  the service this token is intended for, e.g. "agent-drop"
 
 Reads assets/identity.json and assets/private_key.pem (written by register.py),
 then exchanges a signed JWT assertion for an access token and prints it to stdout.
@@ -11,8 +13,8 @@ then exchanges a signed JWT assertion for an access token and prints it to stdou
 The token is valid for 1 hour.  Re-run this script to get a fresh one.
 
 Example:
-    TOKEN=$(python scripts/get_token.py)
-    curl -H "Authorization: Bearer $TOKEN" https://drop.agentinfra.cloud/list
+    TOKEN=$(python scripts/get_token.py agent-drop)
+    curl -H "Authorization: Bearer $TOKEN" <service_url>
 """
 
 import base64
@@ -93,6 +95,11 @@ def _post(url: str, data: dict) -> dict:
 
 
 def main() -> None:
+    if len(sys.argv) < 2:
+        print("Usage: python scripts/get_token.py <audience>", file=sys.stderr)
+        sys.exit(1)
+    audience = sys.argv[1]
+
     identity = _load_identity()
     sub: str = identity["sub"]
     iss: str = identity["iss"]
@@ -107,6 +114,7 @@ def main() -> None:
         {
             "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
             "assertion": assertion,
+            "audience": audience,
         },
     )
 
