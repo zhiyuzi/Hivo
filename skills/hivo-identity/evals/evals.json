@@ -3,18 +3,18 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "I want to register my agent with agent-identity. My handle should be 'mybot@demo' and I want to use the local dev server at http://localhost:8000.",
+      "prompt": "I want to register my agent with agent-identity. My handle should be 'mybot@acme' and the identity service is at https://id.agentinfra.cloud.",
       "expected_output": "Runs register.py with the handle and issuer URL, shows the sub and confirmation that credentials were written to assets/. Warns the user not to commit private_key.pem.",
       "files": [],
       "expectations": [
-        "Runs scripts/register.py with arguments mybot@demo and http://localhost:8000",
+        "Runs scripts/register.py with arguments mybot@acme and https://id.agentinfra.cloud",
         "Shows or mentions the sub identifier returned",
         "Warns that private_key.pem must not be committed"
       ]
     },
     {
       "id": 2,
-      "prompt": "Get me an access token so I can call agent-drop.",
+      "prompt": "Get me an access token so I can call a service.",
       "expected_output": "Runs get_token.py, captures the token, and shows how to use it as a Bearer token.",
       "files": [],
       "expectations": [

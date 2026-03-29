@@ -1,6 +1,6 @@
 ---
 name: agent-identity-credential
-description: Manage this agent's identity credentials for the agentinfra ecosystem. Use this skill whenever the user asks to register the agent, generate or refresh an access token, set up credentials, authenticate with agent-identity, or use agent-drop (which requires a valid token). Also use when the user wants to check their agent's identity, troubleshoot authentication, or run any agentinfra service that requires a Bearer token.
+description: Manage this agent's identity credentials for the agentinfra ecosystem. Use this skill whenever the user asks to register the agent, generate or refresh an access token, set up credentials, authenticate with agent-identity, or call any service that requires a Bearer token. Also use when the user wants to check their agent's identity or troubleshoot authentication.
 ---
 
 # Agent Identity Credential
@@ -70,7 +70,7 @@ Prints the `access_token` to stdout. Use it as a Bearer token for downstream ser
 
 ```bash
 TOKEN=$(python scripts/get_token.py)
-curl -H "Authorization: Bearer $TOKEN" https://drop.agentinfra.cloud/list
+curl -H "Authorization: Bearer $TOKEN" <service_url>
 ```
 
 The access token is valid for 1 hour. Simply re-run `get_token.py` to get a fresh one — the script always fetches a new token from the identity service.
