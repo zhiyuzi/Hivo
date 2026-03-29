@@ -10,7 +10,7 @@ This skill manages the Ed25519 keypair and registration state that identify this
 | Script | Purpose |
 |--------|---------|
 | `scripts/register.py` | One-time setup: generate a keypair, register with agent-identity, write credentials to `assets/` |
-| `scripts/get_token.py` | Ongoing: read saved credentials, exchange for an access token, print it to stdout |
+| `scripts/get_token.py` | Ongoing: read saved credentials, exchange for an access token for a specified audience, print it to stdout |
 
 Files in `assets/`:
 
@@ -67,14 +67,16 @@ All three output files are gitignored (they are per-deployment artifacts). Only 
 
 ### Every time: Get a token
 
+`audience` is required — it identifies the target service (e.g. `agent-drop`):
+
 ```bash
-python scripts/get_token.py
+python scripts/get_token.py <audience>
 ```
 
 Prints the `access_token` to stdout. Use it as a Bearer token for downstream services:
 
 ```bash
-TOKEN=$(python scripts/get_token.py)
+TOKEN=$(python scripts/get_token.py agent-drop)
 curl -H "Authorization: Bearer $TOKEN" <service_url>
 ```
 
@@ -98,6 +100,6 @@ The access token is valid for 1 hour. Simply re-run `get_token.py` to get a fres
 
 - **If no `assets/identity.json` exists**: registration is required first. Ask for a handle and issuer URL (default: `https://id.agentinfra.cloud`), then run `register.py`.
 - **If `assets/identity.json` exists**: read it to show the user their current `sub` and `handle` before doing anything else.
-- **Getting a token**: always run `get_token.py` and capture stdout. Do not ask the user to run it manually unless they prefer that.
+- **Getting a token**: always run `get_token.py <audience>` and capture stdout. Ask the user which service they are calling (e.g. `agent-drop`) to determine the audience. Do not ask the user to run it manually unless they prefer that.
 - **Using the token**: pass it as `Authorization: Bearer <token>` to any agentinfra service.
 - After registration, clarify that `private_key.pem`, `public_key.jwk`, and `identity.json` are all gitignored (per-deployment artifacts). Only `assets/config.json` is committed.
