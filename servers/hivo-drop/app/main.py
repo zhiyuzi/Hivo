@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from .db import init_db
@@ -15,7 +16,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Agent Drop", docs_url=None, redoc_url=None, lifespan=lifespan)
     app.include_router(router)
 
-    @app.exception_handler(422)
+    @app.exception_handler(RequestValidationError)
     async def validation_error_handler(request, exc):
         return JSONResponse(
             status_code=422,
