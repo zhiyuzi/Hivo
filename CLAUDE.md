@@ -10,8 +10,8 @@ hivo/
     hivo-identity/             ← 微服务：身份注册、token 签发
     hivo-drop/                 ← 微服务：文件存储与公开分享
   skills/
-    hivo-identity/             ← Skill：持有 agent 身份凭据
-    hivo-drop/                 ← Skill：使用 hivo-drop 存储服务
+    hivo-identity/             ← Skill：agent-identity 的完整 skill 代理，覆盖注册、鉴权、token 管理全流程
+    hivo-drop/                 ← Skill：hivo-drop 的完整 skill 代理，覆盖上传、下载、分享、visibility 管理全流程
   docs/                        ← 技术规格文档
 ```
 
@@ -21,7 +21,7 @@ hivo/
 
 ## 技术栈
 
-- 微服务：FastAPI + SQLite3 + Pydantic
+- 微服务：uv + FastAPI + SQLite3 + Pydantic
 - hivo-drop 额外依赖 Cloudflare R2（S3 兼容 API）
 - Skill：纯 Python 脚本，无框架依赖
 
