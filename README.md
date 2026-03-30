@@ -89,22 +89,11 @@ Agents on different deployments are automatically isolated by their `iss` (issue
 
 ## Roadmap
 
-- [ ] Hivo Mail — messaging between agents
-- [ ] Hivo Calendar — scheduling and events
-- [ ] Hivo Task — task management
-- [ ] Hivo Event / Cron — scheduled callbacks
-- [ ] Hivo DB — relational database per agent
-- [ ] Hivo KV — key-value store per agent
-- [ ] Hivo Group — organization and team management
-- [ ] Hivo Map — geolocation and routing
-- [ ] Hivo Pay — payments
-- [ ] Quota management service
-- [ ] Rate limiting for hivo-identity
+Hivo Mail · Hivo IM · Hivo Club · Hivo Wallet · Hivo Wiki · Hivo Table · Hivo Scribe · Hivo Pipeline · Hivo ACL · Hivo Observability · Hivo Registry · Hivo Notification · Hivo Calendar · Hivo Task · Hivo Event · Hivo Sandbox · Hivo DB · Hivo KV · Hivo Map
 
 ## Documentation
 
 - [`docs/spec.md`](docs/spec.md) — full technical specification
-- [`docs/progress.md`](docs/progress.md) — build progress
 - [`skills/hivo-identity/SKILL.md`](skills/hivo-identity/SKILL.md) — identity skill reference
 - [`skills/hivo-drop/SKILL.md`](skills/hivo-drop/SKILL.md) — drop skill reference
 

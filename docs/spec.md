@@ -11,6 +11,7 @@ hivo/
   servers/
     hivo-identity/           ← 微服务：身份注册、token 签发
     hivo-drop/               ← 微服务：文件存储与公开分享
+    hivo-web/                ← 微服务：根域名入口，生态索引页
   skills/
     hivo-identity/           ← Skill：hivo-identity 的完整 skill 代理
     hivo-drop/               ← Skill：hivo-drop 的完整 skill 代理
@@ -23,6 +24,7 @@ hivo/
 |------|------|------|
 | `servers/hivo-identity` | 微服务 | 身份注册、token 签发、JWKS 公钥发布 |
 | `servers/hivo-drop` | 微服务 | 文件存储与公开分享（支持任意格式，文本/HTML/二进制均可） |
+| `servers/hivo-web` | 微服务 | 根域名入口，返回生态索引页，不处理业务逻辑 |
 | `skills/hivo-identity` | Skill | hivo-identity 的完整 skill 代理，覆盖注册、鉴权、token 管理全流程 |
 | `skills/hivo-drop` | Skill | hivo-drop 的完整 skill 代理，覆盖上传、下载、分享、visibility 管理全流程 |
 
@@ -33,6 +35,7 @@ hivo/
 ```
 servers/hivo-identity          ← 底层，不依赖任何其他服务
 servers/hivo-drop              ← 依赖 hivo-identity（token 验证）
+servers/hivo-web               ← 无业务依赖，独立运行
 skills/hivo-identity           ← 依赖 servers/hivo-identity（注册与换 token）
 skills/hivo-drop               ← 依赖 servers/hivo-drop（文件操作）
 ```
@@ -85,377 +88,19 @@ Each skill reads its service endpoint from assets/config.json — update that fi
 
 ---
 
-## 2. Service A：hivo-identity
+## 2. 各服务详细规格
 
-### 2.1 定位
+每个服务的完整规格独立维护，见 `docs/specs/`：
 
-> 面向 agent 的公开身份与令牌签发服务。支持自注册（公钥登记）、凭证换取 token、JWKS 公钥发布，以及被下游微服务信任。
-
-### 2.2 身份模型
-
-三层设计：
-
-| 层 | 字段 | 说明 |
-|----|------|------|
-| 内部主键 | `sub` | 不透明、稳定、不可变。格式 `agt_` + UUIDv7 |
-| 可读用户名 | `handle` | `@` 风格，如 `writer@acme`。不是 email，但格式熟悉 |
-| 可选邮箱 | `email` | 预留字段，v1 可空。未来用于通知/找回/邮箱绑定 |
-
-### 2.3 handle 格式约束
-
-- 格式：`{name}@{namespace}`，如 `writer@acme`
-- `name` 和 `namespace` 各自：字母（大小写均可）、数字、连字符，2-32 字符
-- 不允许特殊符号（`.`、`_`、空格等）
-- `@` 后的 namespace 只是命名空间标识符，**不关联任何组织实体**
-- `a1@foo` 和 `a2@foo` 可能属于同一组织，也可能不是——hivo-identity 不关心
-- 组织/团队的归属关系由其他微服务（如 hivo-group）决定
-- handle 全局唯一
-
-### 2.4 数据模型（SQLite3）
-
-**subjects 表**
-
-```sql
-CREATE TABLE subjects (
-    sub         TEXT PRIMARY KEY,          -- agt_ + UUIDv7
-    handle      TEXT NOT NULL UNIQUE,      -- writer@acme
-    email       TEXT,                      -- 可空，预留
-    display_name TEXT,
-    status      TEXT NOT NULL DEFAULT 'active',  -- active / disabled
-    jwk_pub     TEXT NOT NULL,             -- agent 公钥（JWK JSON）
-    created_at  TEXT NOT NULL,
-    updated_at  TEXT NOT NULL
-);
-```
-
-**signing_keys 表**（服务自己的签名密钥）
-
-```sql
-CREATE TABLE signing_keys (
-    kid         TEXT PRIMARY KEY,          -- key id（UUIDv4）
-    alg         TEXT NOT NULL,             -- EdDSA
-    private_key TEXT NOT NULL,             -- 服务端私钥（加密存储）
-    public_key  TEXT NOT NULL,             -- 对应公钥（JWK JSON）
-    is_current  INTEGER NOT NULL DEFAULT 1,
-    created_at  TEXT NOT NULL
-);
-```
-
-**pending_registrations 表**（注册 challenge 临时存储）
-
-```sql
-CREATE TABLE pending_registrations (
-    challenge   TEXT PRIMARY KEY,             -- 随机 nonce
-    handle      TEXT NOT NULL,
-    jwk_pub     TEXT NOT NULL,                -- 待注册的公钥（JWK JSON）
-    expires_at  TEXT NOT NULL,                -- 过期时间（10 分钟）
-    created_at  TEXT NOT NULL
-);
-```
-
-- challenge 有效期 10 分钟
-- 查询前先删除所有已过期行，再按条件查询（opportunistic cleanup）
-- `/register/verify` 成功后立即删除对应行
-
-**refresh_tokens 表**
-
-```sql
-CREATE TABLE refresh_tokens (
-    token_hash  TEXT PRIMARY KEY,             -- refresh_token 的 SHA-256
-    sub         TEXT NOT NULL,                -- 关联的 agent
-    audience    TEXT NOT NULL,                -- token 的目标服务，随 access_token 一起签发
-    expires_at  TEXT NOT NULL,                -- 过期时间（30 天）
-    created_at  TEXT NOT NULL
-);
-```
-
-- 存储 token 的 hash 而非明文，防止数据库泄露后 token 被直接使用
-- 查询前先删除所有已过期行，再按条件查询（opportunistic cleanup）
-- `/token/refresh` 时验证 hash 匹配且未过期
-- 签发新 refresh_token 时删除旧的（单 token 轮换）
-
-### 2.5 注册流程（公钥登记）
-
-采用公私钥模式，**不使用密码**。
-
-流程：
-
-1. Agent 本地生成 Ed25519 密钥对
-2. Agent 调用 `POST /register`，提交 `handle` + 公钥（JWK 格式）
-3. 服务端返回一个 `challenge`（nonce）
-4. Agent 用私钥签署 challenge，调用 `POST /register/verify`
-5. 服务端验证签名，确认 agent 确实持有对应私钥
-6. 注册完成，返回 `sub`
-
-这个 challenge-proof 步骤是**必须的**，防止任何人用别人的公钥注册。
-
-### 2.6 Token 设计
-
-**access_token**（JWT，服务端用自己的私钥签）：
-
-```json
-{
-  "iss": "https://id.hivo.ink",
-  "sub": "agt_01JV8Y...",
-  "aud": "<resource_service>",
-  "handle": "writer@acme",
-  "exp": 1770000000,
-  "iat": 1769996400
-}
-```
-
-`aud` 由调用方在 `POST /token` 时传入，标识 token 的目标服务。hivo-identity 不预设任何默认值——它只签名，不知道下游有哪些服务。
-
-- 标准 claim：`iss`、`sub`、`aud`、`exp`、`iat`
-- 自定义 claim：`handle`
-- 签名算法：EdDSA（Ed25519）
-
-**换取 token 的方式**：`private_key_jwt`（RFC 7523 风格）
-
-1. Agent 用自己的私钥签一个短期 JWT assertion
-2. 发送到 `POST /token`
-3. 服务端用 agent 注册时登记的公钥验证
-4. 验证通过后签发 access_token + refresh_token
-
-### 2.7 API 路由
-
-| 方法 | 路径 | 说明 | 认证 |
-|------|------|------|------|
-| GET | `/` | 生态索引页（Markdown） | 无 |
-| POST | `/register` | 提交 handle + JWK 公钥，返回 challenge | 无 |
-| POST | `/register/verify` | 提交 challenge 签名，完成注册 | 无 |
-| POST | `/token` | 用 private_key_jwt 换取 access_token；请求体须含 `audience`（必填） | 无（自证明） |
-| POST | `/token/refresh` | 用 refresh_token 刷新 | refresh_token |
-| GET | `/me` | 当前 token 对应的身份信息 | Bearer |
-| GET | `/.well-known/openid-configuration` | OIDC Discovery 元数据 | 无 |
-| GET | `/jwks.json` | 服务端签名公钥集合 | 无 |
-| GET | `/health` | 健康检查 | 无 |
-
-### 2.8 Token 有效期
-
-| Token | 有效期 | 说明 |
-|-------|--------|------|
-| access_token | 1 小时 | 过期后用 refresh_token 刷新 |
-| refresh_token | 30 天 | 过期后需重新用 private_key_jwt 换取 |
-
-- access_token 过期 → 调用 `POST /token/refresh` 刷新
-- refresh_token 过期 → 调用 `POST /token` 重新用私钥签 assertion 换取
-- Agent 持有私钥即可随时重新获取 token，不存在"永久失效"
-
-### 2.9 错误响应格式
-
-所有错误响应统一为 JSON：
-
-```json
-{
-  "error": "handle_taken",
-  "message": "Handle writer@acme is already registered"
-}
-```
-
-常用状态码：
-
-| 状态码 | error 示例 | 场景 |
-|--------|-----------|------|
-| 400 | `invalid_assertion` | /token 的 JWT assertion 格式错误或签名无效 |
-| 400 | `challenge_expired` | /register/verify 的 challenge 已过期 |
-| 400 | `challenge_failed` | /register/verify 的签名验证失败 |
-| 401 | `invalid_token` | /me、/token/refresh 的 token 无效或过期 |
-| 409 | `handle_taken` | /register 的 handle 已被注册 |
-| 422 | `validation_error` | 请求参数不合法（handle 格式错误等） |
-| 429 | `rate_limited` | 请求频率超限 |
-
-### 2.10 OIDC Discovery（最小子集）
-
-`GET /.well-known/openid-configuration` 返回：
-
-```json
-{
-  "issuer": "https://id.hivo.ink",
-  "token_endpoint": "https://id.hivo.ink/token",
-  "jwks_uri": "https://id.hivo.ink/jwks.json",
-  "userinfo_endpoint": "https://id.hivo.ink/me",
-  "registration_endpoint": "https://id.hivo.ink/register",
-  "token_endpoint_auth_methods_supported": ["private_key_jwt"],
-  "token_endpoint_auth_signing_alg_values_supported": ["EdDSA"],
-  "subject_types_supported": ["public"],
-  "id_token_signing_alg_values_supported": ["EdDSA"]
-}
-```
-
-v1 做 OIDC-like 最小子集，不追求完整合规。
+| 服务 | 规格文档 |
+|------|----------|
+| hivo-identity（微服务 + Skill） | [docs/specs/hivo-identity.md](specs/hivo-identity.md) |
+| hivo-drop（微服务 + Skill） | [docs/specs/hivo-drop.md](specs/hivo-drop.md) |
+| hivo-web | [docs/specs/hivo-web.md](specs/hivo-web.md) |
 
 ---
 
-## 3. Service B：hivo-drop
-
-### 3.1 定位
-
-> 面向 agent 的文件存储与分享服务。支持任意格式文件（文本/HTML/二进制），可设为公开供其他 agent 或人类查看。核心用途之一：agent 存储 HTML 给人类阅读。
-
-### 3.2 数据模型（SQLite3）
-
-**files 表**
-
-```sql
-CREATE TABLE files (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    owner_sub   TEXT NOT NULL,             -- 文件所有者 (iss:sub)
-    owner_iss   TEXT NOT NULL,             -- 签发方
-    path        TEXT NOT NULL,             -- 用户定义的路径，如 docs/report.html
-    r2_key      TEXT NOT NULL,             -- R2 中的实际 key
-    content_type TEXT NOT NULL,            -- text/html, text/markdown 等
-    visibility  TEXT NOT NULL DEFAULT 'private',  -- private / public
-    share_id    TEXT UNIQUE,               -- 公开时生成的分享 ID（UUIDv4，防枚举）
-    size        INTEGER NOT NULL,
-    sha256      TEXT NOT NULL,
-    etag        TEXT,
-    created_at  TEXT NOT NULL,
-    updated_at  TEXT NOT NULL,
-
-    UNIQUE(owner_iss, owner_sub, path)
-);
-```
-
-索引：
-- `(owner_iss, owner_sub, path)` — 文件定位
-- `(share_id)` — 公开访问
-- `(owner_iss, owner_sub, visibility)` — 列出公开/私有文件
-
-### 3.3 存储
-
-- 正文存 Cloudflare R2（S3 兼容 API）
-- R2 key 格式：`{iss_hash}/{sub}/{path}`
-- 目录通过 key 中的 `/` 分隔符模拟，R2 `list()` 支持 `prefix` + `delimiter` 做目录枚举
-- 元数据存 SQLite，不依赖 R2 的 metadata
-
-### 3.4 可见性规则
-
-- **默认私有**：上传时 `visibility` 不填则为 `private`
-- **显式公开**：通过 `PATCH /files/{path}` 设置 `visibility=public`，此时生成 `share_id`
-- **撤销公开**：设回 `private`，`share_id` 作废
-- 私有文件通过认证 API 访问（Bearer token）
-- 公开文件通过 `/p/{share_id}` 访问，**不需要认证**
-- 未认证访问私有文件一律返回 `404`（隐藏存在性）
-
-### 3.5 覆写保护
-
-- `overwrite` 参数默认 `false`
-- 服务端在写入流程内部判断文件是否已存在，**不依赖客户端先调 exists 检查**
-- `overwrite=false` 且文件已存在 → 返回 `409 Conflict`
-- `overwrite=true` → 覆盖写入
-- `HEAD /files/{path}` 可用于客户端提示，但不是强一致保证
-
-### 3.6 允许的内容类型
-
-支持任意格式文件（文本或二进制）。文本类型可在浏览器直接渲染，二进制类型仅供下载。
-
-**文本 allowlist（可渲染）：**
-
-- `text/plain`
-- `text/markdown`
-- `text/html`
-- `text/css`
-- `text/javascript`
-- `application/json`
-- `application/xml`
-- `application/yaml`
-- `application/toml`
-
-**二进制：** 接受任意 `Content-Type`，公开访问时以 `Content-Disposition: attachment` 下载，不渲染。
-
-判断依据：上传时的 `Content-Type` 头。不依赖文件扩展名。
-
-### 3.7 HTML 公开托管安全方案
-
-HTML 公开展示是核心功能。安全约束：
-
-1. **同域名隔离**：公开文件通过 `drop.hivo.ink/p/{share_id}` 访问，与认证 API 共用域名但路径隔离
-2. **无 cookie**：hivo-drop 使用 Bearer token 认证，不设置任何 cookie，公开路径无登录态可窃取
-3. **严格 CSP**：公开 HTML 响应头添加：
-   ```
-   Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src https: data:; font-src https:;
-   ```
-   - 禁止 `script-src`（不允许执行 JS）
-   - 允许内联样式（agent 生成的 HTML 通常用内联样式）
-   - 允许加载外部图片和字体
-4. **额外安全头**：
-   ```
-   X-Content-Type-Options: nosniff
-   X-Frame-Options: DENY
-   ```
-5. **sandbox 属性**：如果通过 iframe 嵌入，加 `sandbox` 属性限制能力
-
-这样 agent 可以上传带样式的 HTML 给人类看，但不会被用来做 XSS、钓鱼页或脚本注入。
-
-### 3.8 API 路由
-
-| 方法 | 路径 | 说明 | 认证 |
-|------|------|------|------|
-| GET | `/` | 生态索引页（Markdown） | 无 |
-| PUT | `/files/{path:path}` | 上传文件 | Bearer |
-| GET | `/files/{path:path}` | 获取文件原文 | Bearer |
-| HEAD | `/files/{path:path}` | 检查文件是否存在 | Bearer |
-| DELETE | `/files/{path:path}` | 删除文件 | Bearer |
-| PATCH | `/files/{path:path}` | 修改元数据（visibility 等） | Bearer |
-| GET | `/list?prefix=` | 列出文件/目录 | Bearer |
-| GET | `/p/{share_id}` | 公开访问（无需认证） | 无 |
-| GET | `/health` | 健康检查 | 无 |
-
-### 3.9 Token 验证流程
-
-hivo-drop 收到请求后：
-
-1. 提取 `Authorization: Bearer <token>`
-2. 解析 JWT，读取 `iss`
-3. 检查 `iss` 是否在受信任 issuer 列表中
-4. 从 `iss` 对应的 `/jwks.json` 获取公钥（带缓存）
-5. 验证 JWT 签名
-6. 检查 `aud` 是否与本服务名一致（不匹配则拒绝）
-7. 检查 `exp` 是否过期
-8. 提取 `sub`、`handle`，识别用户身份
-
-配置项：
-```
-TRUSTED_ISSUERS=https://id.hivo.ink
-```
-
-### 3.10 上传限制
-
-| 限制项 | 默认值 | 说明 |
-|--------|--------|------|
-| 单文件大小上限 | 1 MB | 覆盖文本/HTML/二进制均适用 |
-| 每 agent 文件数上限 | 100 | 超出后返回 `403`，需删除旧文件或提升配额 |
-
-- 上传时服务端检查 `Content-Length`，超出直接返回 `413 Request Entity Too Large`
-- 文件数检查在写入前执行，超出返回 `403 Forbidden`（附 error: `quota_exceeded`）
-- 配额值未来由独立的 Quota 服务管理，v1 先用固定默认值
-
-### 3.11 错误响应格式
-
-所有错误响应统一为 JSON：
-
-```json
-{
-  "error": "quota_exceeded",
-  "message": "File count limit reached (100)"
-}
-```
-
-常用状态码：
-
-| 状态码 | error 示例 | 场景 |
-|--------|-----------|------|
-| 401 | `invalid_token` | Bearer token 无效、过期、签名错误、aud 不匹配 |
-| 403 | `quota_exceeded` | 文件数超出配额 |
-| 404 | `not_found` | 文件不存在（或无权访问时隐藏存在性） |
-| 409 | `conflict` | PUT 上传时文件已存在且未指定 overwrite=true |
-| 413 | `file_too_large` | 文件大小超出 1 MB 上限 |
-| 422 | `validation_error` | 请求参数不合法（路径格式错误等） |
-
----
-
-## 4. 身份体系速查
+## 3. 身份体系速查
 
 ```
 iss        — 哪个身份服务签发的（区分部署）
@@ -470,226 +115,108 @@ aud        — 这个 token 给谁用（资源服务校验）
 
 ---
 
-## 5. 生态发现
+## 4. 生态发现
 
-### 5.1 运行时发现
+### 4.1 运行时发现
 
 生态发现由根域名 `https://hivo.ink` 负责（见 §1.5）。agent 访问根域名即可获取所有服务的入口和说明。
 
-### 5.2 接入建议
+### 4.2 接入建议
 
 任何需要接入 Hivo 生态的 agent：
 
 1. 访问 `https://hivo.ink` 了解所有可用服务
 2. 安装 `skills/hivo-identity` skill——它封装了 Ed25519 keypair 生成、challenge-proof 注册流程、JWT 签发等全部流程，是推荐的接入方式
-3. 如需手动集成，阅读各服务的 `GET /README.md`
+3. 如需手动集成，阅读对应服务的规格文档（见 §2）
 
 ---
 
-## 6. Skill：hivo-identity
+## 5. 待办事项（Backlog）
 
-### 6.1 定位
+相似的服务并列存在时，边界容易模糊。以下是关键服务的定位对照，供设计时参考。
 
-位于 `skills/hivo-identity/`。它是 `servers/hivo-identity` 的完整 skill 代理，覆盖注册、鉴权、token 管理全流程——生成 Ed25519 密钥对、完成 challenge-proof 注册、换取和刷新 access token，供 agent 在运行时直接调用。
+**Mail、IM、Club、Notification：**
 
-### 6.2 目录结构
+| 服务 | 类比 | 核心用途 | 关键特征 |
+|------|------|---------|---------|
+| Hivo Mail | Email | 正式通知、报告、需要存档的沟通 | 异步、有主题/线程、持久化 |
+| Hivo IM | Telegram / 飞书消息 | 快速指令、状态推送、对话式交互 | 即时/近即时，轻量；Channel 模式可桥接 Discord、飞书、Slack 等外部平台 |
+| Hivo Club | Discord server / 钉钉组织 | agent 归属关系与权限管理 | 不是消息系统——是容器，管理成员、角色、权限 |
+| Hivo Notification | APNs / FCM | agent 完成任务后单向告知人类 | 单向 push，不建立对话；轻于 IM，无需对方在线 |
 
-```
-hivo-identity/
-  SKILL.md          ← skill 描述与使用说明
-  scripts/
-    register.py     ← 生成 Ed25519 密钥对，向 hivo-identity 完成注册，将结果写入 assets/
-    get_token.py    ← 读取私钥，生成 assertion，换取 access_token，输出供 agent 使用
-  assets/
-    .gitignore      ← 只含一行：private_key.pem
-    private_key.pem ← 生成后写入，不提交 git
-    public_key.jwk  ← 对应公钥，可提交
-    identity.json   ← 注册结果：sub、handle、iss 等，可提交
-```
+四者互不替代：Mail 是正式信件，IM 是即时通话，Club 是俱乐部本身，Notification 是门铃——响一声，不等回应。
 
-### 6.3 scripts/register.py 行为
+**KV、DB、Table：**
 
-1. 生成 Ed25519 密钥对
-2. 调用 `POST /register` 提交 handle + 公钥，获取 challenge
-3. 用私钥签署 challenge，调用 `POST /register/verify` 完成注册
-4. 将私钥写入 `assets/private_key.pem`，公钥写入 `assets/public_key.jwk`，注册结果写入 `assets/identity.json`
+| 服务 | 类比 | 核心用途 | 关键特征 |
+|------|------|---------|---------|
+| Hivo KV | Redis | 配置、运行时状态、偏好、feature flag | O(1) 读写，value 为任意 JSON，无关系，无查询 |
+| Hivo DB | PostgreSQL | 任务、日历、邮件等结构化业务数据 | SQL 查询，支持 JOIN/聚合，有 schema |
+| Hivo Table | Airtable / 飞书多维表格 | 结构化数据的可视化输出与分享 | 电子表格式，agent 和人类都可读写；可公开分享渲染，像 Drop 但有结构 |
 
-路径定位方式（不依赖运行时工作目录）：
+选择依据：**只需按 key 存取用 KV；有查询需求用 DB；需要结构化、可视化、可分享的表格输出用 Table**。三者均 per-agent 隔离。
 
-```python
-from pathlib import Path
-ASSETS_DIR = Path(__file__).parent.parent / "assets"
-```
-
-### 6.4 scripts/get_token.py 行为
-
-调用方式：`python scripts/get_token.py <audience>`，`audience` 为必填参数，标识 token 的目标服务（如 `hivo-drop`）。
-
-1. 从命令行参数读取 `audience`，缺失则报错退出
-2. 读取 `assets/identity.json`，获取 `sub` 和 `iss`
-3. 读取 `assets/private_key.pem`，加载私钥
-4. 构造 assertion（JWT）：
-   - `iss` = `sub`
-   - `sub` = `sub`
-   - `aud` = `{iss}/token`
-   - `iat` = 当前时间
-   - `exp` = 当前时间 + 5 分钟
-5. 用私钥对 assertion 签名（EdDSA）
-6. 调用 `POST {iss}/token`，提交 assertion 和 audience，获取 access_token 和 refresh_token
-7. 将 access_token 输出到 stdout，供 agent 使用
-
-路径定位方式同 `register.py`，不依赖运行时工作目录：
-
-```python
-from pathlib import Path
-ASSETS_DIR = Path(__file__).parent.parent / "assets"
-```
-
-### 6.5 .gitignore
-
-```
-assets/private_key.pem
-```
-
-`public_key.jwk` 和 `identity.json` 可以提交，它们不是秘密。
-
----
-
-## 7. Skill：hivo-drop
-
-### 7.1 定位
-
-位于 `skills/hivo-drop/`。它是 `servers/hivo-drop` 的完整 skill 代理，覆盖文件上传、下载、删除、列表及可见性管理全流程。所有操作均需 Bearer token，token 由 hivo-identity skill 提供。
-
-### 7.2 前置条件
-
-`skills/hivo-identity` 必须已安装并完成注册（`assets/identity.json` 和 `assets/private_key.pem` 存在）。hivo-drop 的所有脚本在运行时自动调用 `../hivo-identity/scripts/get_token.py hivo-drop` 获取 Bearer token，无需用户手动提供。
-
-### 7.3 目录结构
-
-```
-hivo-drop/
-  SKILL.md          ← skill 描述与使用说明
-  scripts/
-    upload.py       ← 上传文件（PUT /files/{path}）
-    download.py     ← 下载文件（GET /files/{path}）
-    delete.py       ← 删除文件（DELETE /files/{path}）
-    list.py         ← 列出文件（GET /list?prefix=）
-    share.py        ← 设置可见性（PATCH /files/{path}），公开时返回分享 URL
-  assets/
-    config.json     ← drop_url，读取 hivo-drop 服务地址
-```
-
-### 7.4 scripts 行为
-
-所有脚本共用两个辅助函数（各自内联）：
-
-- `_load_config()` — 读取 `assets/config.json`，返回 `drop_url`
-- `_get_token()` — 调用 `../hivo-identity/scripts/get_token.py hivo-drop`，返回 access_token
-
-路径定位方式（不依赖运行时工作目录）：
-
-```python
-from pathlib import Path
-ASSETS_DIR = Path(__file__).parent.parent / "assets"
-IDENTITY_GET_TOKEN = Path(__file__).parent.parent.parent / "hivo-identity" / "scripts" / "get_token.py"
-```
-
-**upload.py**
-
-调用方式：`python scripts/upload.py <local_file> <remote_path> [--overwrite]`
-
-1. 读取本地文件，检测 Content-Type（基于文件扩展名，fallback `application/octet-stream`）
-2. 获取 Bearer token
-3. `PUT /files/{remote_path}?overwrite=true/false`，附 `Content-Type` 和 `Content-Length`
-4. 打印结果：`Uploaded: {path} ({size} bytes)`
-
-**download.py**
-
-调用方式：`python scripts/download.py <remote_path> [local_file]`
-
-1. 获取 Bearer token
-2. `GET /files/{remote_path}`
-3. 若提供 `local_file`：写入磁盘，打印 `Saved: {local_file}`
-4. 若未提供：内容写入 stdout（适合文本文件管道使用）
-
-**delete.py**
-
-调用方式：`python scripts/delete.py <remote_path>`
-
-1. 获取 Bearer token
-2. `DELETE /files/{remote_path}`
-3. 打印 `Deleted: {path}`
-
-**list.py**
-
-调用方式：`python scripts/list.py [prefix]`
-
-1. 获取 Bearer token
-2. `GET /list?prefix={prefix}`
-3. 表格打印：path、content_type、visibility、size
-
-**share.py**
-
-调用方式：`python scripts/share.py <remote_path> public|private`
-
-1. 获取 Bearer token
-2. `PATCH /files/{remote_path}` with `{"visibility": "public"|"private"}`
-3. 若设为 public：打印 `Public URL: {drop_url}/p/{share_id}`
-4. 若设为 private：打印 `File is now private. Share link revoked.`
-
-### 7.5 assets/config.json
-
-```json
-{"drop_url": "https://drop.hivo.ink"}
-```
-
-唯一配置项。所有脚本运行时读取此文件作为服务地址。可改为私有部署地址。
-
----
-
-## 8. 待办事项（Backlog）
-
-### 8.1 Hivo Mail（邮件）
+### 5.1 Hivo Mail（邮件）
 
 - 基于 hivo-identity 的身份体系扩展
 - 让 agent 拥有可收发消息的地址
 - 邮件服务是 hivo-identity **上层的产品能力**，不是底座
 - 独立仓库，独立微服务
 
-### 8.2 Quota（hivo-drop 配额）
+### 5.2 Hivo IM（即时消息）
 
-- 控制每个 agent 在 hivo-drop 中可上传的文件数量
-- 基于 `sub`（per-agent）做配额管理
-- v1 使用固定默认值（100），未来可支持动态调整
+- 为 agent 提供轻量即时消息能力
+- **两种模式：**
+  - Native：agent 与 agent、agent 与人之间通过 Hivo 原生接口收发消息
+  - Channel：桥接外部平台（Discord、飞书、Slack、Telegram 等），agent 可监听并回复来自这些平台的消息，从而出现在人类已有的对话场景里
+- Channel 是 IM 的接入扩展，而非独立服务——消息本质相同，通道不同
+- 消息轻量、即时、对话式；有别于 Mail 的正式异步，有别于 Club 的归属/权限管理
+- 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 8.3 Hivo Group（组织/团队管理）
+### 5.3 Hivo Club（组织/团队管理）
 
 - 基于 hivo-identity 的身份体系扩展
-- 管理 agent 的组织/团队归属关系
-- handle 中的 namespace 不等于 group——归属关系由此服务决定
+- 管理 agent 的归属关系：成员资格、角色、权限
+- handle 中的 namespace 不等于 club——归属关系由此服务决定
 - 独立仓库，独立微服务
 
-### 8.4 Hivo Pay（支付）
+### 5.4 Hivo Wallet（钱包）
 
-- 为 agent 提供支付能力
+- 为 agent 提供持有余额、接收付款、发起转账的能力
 - 具体方案待议
 - 独立仓库，独立微服务
 
-### 8.5 hivo-identity：速率限制
+### 5.5 hivo-drop：用量统计与配额
+
+- **用量统计**：记录并暴露每个 agent 在 hivo-drop 中的实际用量（文件数、总存储大小、带宽消耗等）
+- **配额**：控制每个 agent 的上限，超出返回 `403 quota_exceeded`
+- 两者配套：配额设上限，用量统计报当前位置
+- 基于 `sub`（per-agent）隔离；v1 使用固定默认值，未来由独立 Quota 服务管理
+- 独立仓库，独立微服务
+
+### 5.6 Hivo Sandbox（代码执行沙箱）
+
+- 为 agent 提供临时、隔离的代码执行环境
+- 核心接口：`POST /run`，提交代码和语言类型，返回 stdout/stderr 和退出码
+- 有执行时间限制和资源上限（CPU、内存）
+- **不自建执行隔离**：底层接 E2B、Modal 或 Cloudflare Workers for Platforms 等专业沙箱服务；Hivo 负责鉴权和接口统一，不负责容器安全本身
+- 认证基于 hivo-identity Bearer token
+- 独立仓库，独立微服务
+
+### 5.7 hivo-identity：速率限制
 
 - 对高频接口（`/register`、`/token`）实现请求速率限制
 - 超限返回 `429 rate_limited`
 - v1 未实现，后续按实际需求确定限流策略
 
-### 8.6 hivo-identity：Profile 修改接口
+### 5.8 hivo-identity：Profile 修改接口
 
 - 新增 `PATCH /me`，需要 Bearer 认证
 - 支持修改 `display_name` 和 `email` 两个字段
 - `sub` 和 `handle` 不可修改
 
-### 8.7 Hivo Calendar（日历）
+### 5.9 Hivo Calendar（日历）
 
 - 为 agent 提供日历与日程管理能力
 - 支持创建、查询、更新、删除事件（Event）
@@ -697,7 +224,7 @@ IDENTITY_GET_TOKEN = Path(__file__).parent.parent.parent / "hivo-identity" / "sc
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 8.8 Hivo Task（任务）
+### 5.10 Hivo Task（任务）
 
 - 为 agent 提供任务管理能力（类 Todo/Issue）
 - 支持创建、分配、更新状态、关闭任务
@@ -705,7 +232,7 @@ IDENTITY_GET_TOKEN = Path(__file__).parent.parent.parent / "hivo-identity" / "sc
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 8.9 Hivo Event（事件驱动：Cron + Webhook）
+### 5.11 Hivo Event（事件驱动：Cron + Webhook）
 
 **Cron（确定做）：**
 - 为 agent 注册定时任务，到时间后由平台回调 agent 指定 URL
@@ -720,7 +247,7 @@ IDENTITY_GET_TOKEN = Path(__file__).parent.parent.parent / "hivo-identity" / "sc
 - 问题三：agent 完全可以自己暴露 HTTP 端点直接接收外部推送，不需要平台中转
 - **结论**：Cron 是刚需，Webhook 中转价值有限，暂不做。如未来有明确需求场景再议。
 
-### 8.10 Hivo DB（关系型数据库）
+### 5.12 Hivo DB（关系型数据库）
 
 - 为 agent 提供结构化数据存储能力
 - 每个 agent（按 `sub`）拥有独立数据库实例或 schema 命名空间
@@ -728,7 +255,7 @@ IDENTITY_GET_TOKEN = Path(__file__).parent.parent.parent / "hivo-identity" / "sc
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 8.11 Hivo KV（键值存储）
+### 5.13 Hivo KV（键值存储）
 
 - 为 agent 提供轻量键值存储能力
 - 每个 agent（按 `sub`）拥有独立命名空间
@@ -737,7 +264,7 @@ IDENTITY_GET_TOKEN = Path(__file__).parent.parent.parent / "hivo-identity" / "sc
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 8.12 Hivo Map（地图服务）
+### 5.14 Hivo Map（地图服务）
 
 - 为 agent 提供地理位置与地图能力
 - 支持地理编码（地址 → 坐标）、反地理编码（坐标 → 地址）、路径规划、POI 搜索
@@ -745,24 +272,95 @@ IDENTITY_GET_TOKEN = Path(__file__).parent.parent.parent / "hivo-identity" / "sc
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
+### 5.15 Hivo Wiki（知识库）
+
+- 为 agent 提供层级化知识管理能力：空间 → 节点 → 页面
+- 结构化内容，支持全文检索和层级浏览；比纯向量检索更可管理、更可维护
+- 适合团队知识沉淀、文档中心、长期参考资料
+- 可与 Club 联动：club 拥有共享 wiki 空间
+- 认证基于 hivo-identity Bearer token
+- 独立仓库，独立微服务
+
+### 5.16 Hivo Table（结构化表格）
+
+- 为 agent 提供电子表格式结构化数据存储与输出
+- 支持字段定义、记录 CRUD、视图过滤、排序
+- 可公开分享（类似 Drop 的 `/p/{share_id}`），前端直接渲染，对人类和 agent 均友好
+- 与 DB 的区别：Table 面向可视化输出和协作，DB 面向后端查询（见对比表）
+- 认证基于 hivo-identity Bearer token
+- 独立仓库，独立微服务
+
+### 5.17 Hivo Scribe（媒体转录）
+
+- 为 agent 提供媒体内容的结构化提取能力
+- 能力：语音转文字、图片 OCR、会议录音摘要、AI 生成结构化笔记
+- 输入：音频文件、图片、视频片段（通过 hivo-drop 路径引用或直接上传）
+- 输出：纯文本转录、带时间戳文本、结构化摘要
+- 认证基于 hivo-identity Bearer token
+- 独立仓库，独立微服务
+
+### 5.18 Hivo Pipeline（多 Agent 编排）
+
+- 为 agent 提供任务委派、异步等待、结果汇聚的编排能力
+- 核心模型：有向任务图——节点是子任务，边是依赖关系，每个节点可指派给不同 agent 执行
+- 覆盖人工审批场景：节点可设为"需人类确认"，pipeline 暂停等待，批准后继续
+- 与 Club 的关系：Club 管理"谁在这个圈子"，Pipeline 管理"这件事按什么顺序、由谁来做"——互补不冲突
+- 认证基于 hivo-identity Bearer token
+- 独立仓库，独立微服务
+
+### 5.19 Hivo ACL（访问控制）
+
+- 跨服务统一访问控制层：细粒度管理"谁能对什么资源做什么操作"
+- 解决的问题：目前各服务（如 hivo-drop）只有 owner-only 权限，无法支持多 agent 协作共享资源
+- 典型场景：Agent A 授权 Agent B 读取某个 Drop 文件；Club 成员共享某个 Table；Pipeline 中子任务的执行权限
+- 与 Club 的关系：Club 提供成员关系，ACL 基于成员关系定义权限策略——Club 是"谁在里面"，ACL 是"里面的人能做什么"
+- 认证基于 hivo-identity Bearer token
+- 独立仓库，独立微服务
+
+### 5.20 Hivo Observability（可观测性）
+
+- 为 agent 提供运行时自查能力：调用日志、延迟指标、错误率、配额消耗
+- 核心用途：agent 感知自身状态，支撑自主决策（"我今天 API 调用是否接近上限？"）
+- 不只是运维工具——agent 能读取自己的可观测数据，是 agent 自主性的基础设施
+- 数据范围：跨 Hivo 各服务的调用记录，按 sub 隔离，agent 只能查自己的数据
+- 认证基于 hivo-identity Bearer token
+- 独立仓库，独立微服务
+
+### 5.21 Hivo Registry（能力注册与发现）
+
+- agent 将自己的能力主动注册（"我能做 X"），其他 agent 可查询"谁能帮我做 Y"
+- 解决多 agent 生态中的寻址问题：没有 Registry，agent 之间是孤岛，只有人类知道谁能做什么
+- 典型场景：Agent A 需要翻译日语，查询 Registry 找到注册了翻译能力的 Agent B，委托执行
+- 与 Pipeline 的关系：Registry 是发现层（找到谁），Pipeline 是编排层（怎么协调）
+- 认证基于 hivo-identity Bearer token
+- 独立仓库，独立微服务
+
+### 5.22 Hivo Notification（消息推送）
+
+- 为 agent 提供单向轻量推送能力：任务完成、异常告警、状态变更等通知人类
+- 与 IM 的区别：不建立对话，不等待回应；轻于 IM，适合"门铃"式告知（见对比表）
+- 支持渠道：手机推送（APNs/FCM）、浏览器通知、Webhook 回调
+- 认证基于 hivo-identity Bearer token
+- 独立仓库，独立微服务
+
 ---
 
-## 9. 部署与配置
+## 6. 部署与配置
 
-### 9.1 公有云部署
+### 6.1 公有云部署
 
-- 根域名入口：`https://hivo.ink`
+- 根域名入口：`https://hivo.ink`（hivo-web）
 - hivo-identity：`https://id.hivo.ink`
 - hivo-drop：`https://drop.hivo.ink`（API + 公开访问均在此域名）
 
-### 9.2 私有部署
+### 6.2 私有部署
 
 企业克隆仓库后自行部署：
 - 修改 `iss` 为自己的域名
 - hivo-drop 配置 `TRUSTED_ISSUERS` 指向自己的 hivo-identity 实例
 - 数据完全隔离，`iss` 不同即为不同信任域
 
-### 9.3 关键配置项
+### 6.3 关键配置项
 
 **hivo-identity：**
 ```
@@ -781,7 +379,12 @@ R2_SECRET_ACCESS_KEY=xxx
 R2_BUCKET_NAME=hivo-drop
 ```
 
-### 9.4 Python 工具链规范
+**hivo-web：**
+```
+REPO_URL=https://github.com/zhiyuzi/Hivo
+```
+
+### 6.4 Python 工具链规范
 
 所有微服务统一使用 [uv](https://docs.astral.sh/uv/) 管理 Python 依赖，不使用 pip / poetry / pipenv。
 

@@ -89,22 +89,11 @@ R2_BUCKET_NAME=your-bucket
 
 ## 路线图
 
-- [ ] Hivo Mail — Agent 间消息收发
-- [ ] Hivo Calendar — 日历与日程管理
-- [ ] Hivo Task — 任务管理
-- [ ] Hivo Event / Cron — 定时任务回调
-- [ ] Hivo DB — 每 Agent 关系型数据库
-- [ ] Hivo KV — 每 Agent 键值存储
-- [ ] Hivo Group — 组织与团队管理
-- [ ] Hivo Map — 地理位置与路径规划
-- [ ] Hivo Pay — 支付能力
-- [ ] 配额管理服务
-- [ ] hivo-identity 速率限制
+Hivo Mail · Hivo IM · Hivo Club · Hivo Wallet · Hivo Wiki · Hivo Table · Hivo Scribe · Hivo Pipeline · Hivo ACL · Hivo Observability · Hivo Registry · Hivo Notification · Hivo Calendar · Hivo Task · Hivo Event · Hivo Sandbox · Hivo DB · Hivo KV · Hivo Map
 
 ## 文档
 
 - [`docs/spec.md`](docs/spec.md) — 完整技术规格
-- [`docs/progress.md`](docs/progress.md) — 开发进度
 - [`skills/hivo-identity/SKILL.md`](skills/hivo-identity/SKILL.md) — identity skill 说明
 - [`skills/hivo-drop/SKILL.md`](skills/hivo-drop/SKILL.md) — drop skill 说明
 
