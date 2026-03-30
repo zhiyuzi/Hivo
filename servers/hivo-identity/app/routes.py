@@ -22,193 +22,21 @@ from .tokens import (
 
 router = APIRouter()
 
+REPO_URL = "https://github.com/zhiyuzi/Hivo"
+
 _INDEX_MD = """\
-# Hivo Identity
+# Hivo
+You reached Hivo via hivo-identity.
 
-Role: issuer / authentication service
-Issuer: {issuer}
-Docs: GET /README.md
+Open infrastructure for agents.
 
-## Core Routes
-- GET /README.md — Full documentation (read this first)
-- POST /register — Register agent (public key enrollment)
-- POST /register/verify — Complete registration (challenge verification)
-- POST /token — Exchange private_key_jwt for access_token
-- POST /token/refresh — Refresh access_token
-- GET /me — Current identity info
-- GET /.well-known/openid-configuration — OIDC Discovery metadata
-- GET /jwks.json — Signing public keys
-- GET /health — Health check
+Microservices: hivo-identity, hivo-drop
+Skills: {repo_url}/tree/main/skills/
 
-## Identity Model
-- Primary key: sub
-- Human-readable name: handle
-- Token format: JWT (EdDSA)
+To get started, clone the repository and load the skill for the service you need.
+Each skill reads its service endpoint from assets/config.json — update that file for private deployments.
 """
 
-_README_MD = """\
-# Hivo Identity — Full Documentation
-
-## Registration
-
-1. Generate an Ed25519 key pair locally.
-2. POST /register with your handle and public key (JWK format).
-3. Receive a `challenge` nonce in the response.
-4. Sign the challenge bytes with your private key (Ed25519, raw signature).
-5. POST /register/verify with the challenge and base64url-encoded signature.
-6. Receive your `sub` (permanent identifier).
-
-### POST /register
-
-Request body (JSON):
-```json
-{
-  "handle": "myagent@acme",
-  "jwk_pub": {"kty": "OKP", "crv": "Ed25519", "x": "<base64url>"}
-}
-```
-
-Response:
-```json
-{"challenge": "<nonce>"}
-```
-
-### POST /register/verify
-
-Request body (JSON):
-```json
-{
-  "challenge": "<nonce from /register>",
-  "signature": "<base64url Ed25519 signature of challenge bytes>"
-}
-```
-
-Response:
-```json
-{"sub": "agt_01...", "handle": "myagent@acme"}
-```
-
-## Token Exchange
-
-### POST /token
-
-Exchange a `private_key_jwt` assertion for an access_token.
-
-The assertion is a JWT signed with your Ed25519 private key:
-```json
-{
-  "iss": "<your sub>",
-  "sub": "<your sub>",
-  "aud": "https://id.hivo.ink/token",
-  "iat": <now>,
-  "exp": <now + 300>
-}
-```
-
-Request body (JSON):
-```json
-{
-  "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-  "assertion": "<signed JWT>"
-}
-```
-
-Response:
-```json
-{
-  "access_token": "<JWT>",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "refresh_token": "<opaque token>"
-}
-```
-
-### POST /token/refresh
-
-Request body (JSON):
-```json
-{"refresh_token": "<token>"}
-```
-
-Response: same as /token.
-
-## Identity Info
-
-### GET /me
-
-Requires: `Authorization: Bearer <access_token>`
-
-Response:
-```json
-{
-  "sub": "agt_01...",
-  "handle": "myagent@acme",
-  "status": "active",
-  "created_at": "2024-01-01T00:00:00+00:00"
-}
-```
-
-## Public Keys
-
-### GET /jwks.json
-
-Returns the service's Ed25519 signing public keys in JWKS format.
-Downstream services use this to verify access tokens without calling back to hivo-identity.
-
-Response:
-```json
-{
-  "keys": [
-    {"kty": "OKP", "crv": "Ed25519", "x": "<base64url>", "kid": "<uuid>"}
-  ]
-}
-```
-
-### GET /.well-known/openid-configuration
-
-OIDC Discovery metadata (minimal subset). Use this to discover endpoint URLs programmatically.
-
-Response:
-```json
-{
-  "issuer": "<ISSUER_URL>",
-  "token_endpoint": "<ISSUER_URL>/token",
-  "jwks_uri": "<ISSUER_URL>/jwks.json",
-  "userinfo_endpoint": "<ISSUER_URL>/me",
-  "registration_endpoint": "<ISSUER_URL>/register",
-  "token_endpoint_auth_methods_supported": ["private_key_jwt"],
-  "token_endpoint_auth_signing_alg_values_supported": ["EdDSA"]
-}
-```
-
-## Health
-
-### GET /health
-
-Returns `200 OK` when the service is running.
-
-Response:
-```json
-{"status": "ok"}
-```
-
-## Error Format
-
-```json
-{"error": "error_code", "message": "Human readable message"}
-```
-
-Common error codes:
-
-| Status | error | Scenario |
-|--------|-------|----------|
-| 400 | `invalid_assertion` | /token JWT assertion malformed or signature invalid |
-| 400 | `challenge_expired` | /register/verify challenge not found or expired |
-| 400 | `challenge_failed` | /register/verify signature verification failed |
-| 401 | `invalid_token` | /me or /token/refresh token invalid or expired |
-| 409 | `handle_taken` | /register handle already registered |
-| 422 | `validation_error` | Request parameters invalid (bad handle format, etc.) |
-"""
 
 
 def _now_iso() -> str:
@@ -243,14 +71,9 @@ def _require_auth(authorization: Optional[str] = Header(default=None)) -> dict:
 @router.get("/", response_class=PlainTextResponse)
 def index():
     return PlainTextResponse(
-        _INDEX_MD.format(issuer=settings.issuer_url),
+        _INDEX_MD.format(repo_url=REPO_URL),
         media_type="text/markdown; charset=utf-8",
     )
-
-
-@router.get("/README.md", response_class=PlainTextResponse)
-def readme():
-    return PlainTextResponse(_README_MD, media_type="text/markdown; charset=utf-8")
 
 
 @router.get("/health")

@@ -52,41 +52,33 @@ skills/hivo-drop               ← 依赖 servers/hivo-drop（文件操作）
 - hivo-drop 额外依赖 Cloudflare R2
 - Skills：纯 Python 脚本，无框架依赖
 
-### 1.5 根域名入口
+### 1.5 运行时入口约定
 
-`https://hivo.ink` 作为整个生态的运行时发现入口，返回 `Content-Type: text/markdown; charset=utf-8`：
+所有域名（根域名和各微服务子域名）的 `GET /` 返回同一份生态索引，`Content-Type: text/markdown; charset=utf-8`。
+
+**模板（所有域名共用）：**
 
 ```markdown
 # Hivo
+{optional: You reached Hivo via {service-name}.}
 
 Open infrastructure for agents.
 
-## Services
-- https://id.hivo.ink — Hivo Identity: registration & authentication
-- https://drop.hivo.ink — Hivo Drop: file storage & sharing
+Microservices: hivo-identity, hivo-drop
+Skills: {REPO_URL}/tree/main/skills/
 
-## Getting Started
-1. Install the `hivo-identity` skill — it handles keypair generation, registration, and token acquisition for you.
-2. If you prefer manual integration, read the identity service docs: GET https://id.hivo.ink/README.md
-3. Read each service's README: GET {service_url}/README.md
+To get started, clone the repository and load the skill for the service you need.
+Each skill reads its service endpoint from assets/config.json — update that file for private deployments.
 ```
 
-每个微服务的 `/` 和 `/README.md` 提供该服务的详细使用文档。根域名只负责告知"有哪些服务、在哪"。
+**约定：**
 
-### 1.6 运行时自描述约定
+- `{REPO_URL}` 是部署级变量，公有云默认为 `https://github.com/zhiyuzi/Hivo`，私有部署替换为自己的仓库地址
+- 微服务子域名在第二行加一句 `You reached Hivo via {service-name}.`，其余内容与根域名完全一致
+- 不实现 `GET /README.md`；服务的使用文档由 skills 仓库的 SKILL.md 负责
+- 微服务列表（`Microservices:` 行）随部署实际包含的服务更新，不硬编码 URL
 
-所有微服务必须实现以下两个路由，返回 `Content-Type: text/markdown; charset=utf-8`：
-
-| 路由 | 内容 | 用途 |
-|------|------|------|
-| `GET /` | 服务概览（角色、issuer、核心路由列表） | agent 快速了解这是什么服务 |
-| `GET /README.md` | 完整 API 文档（所有端点的请求/响应格式、错误码） | agent 获取足够上下文后调用服务 |
-
-设计原则：**服务把自己的使用说明内嵌在自己里面**。agent 不需要依赖任何外部文档，只需 HTTP 请求即可自主获取所有必要信息。`GET /` 是元信息入口，agent 读完后若需要更多细节，自行请求 `GET /README.md`。
-
-`/` 的内容模板必须在首行包含 `Docs: GET /README.md`，并在路由列表中将 `GET /README.md` 列为第一条。
-
-### 1.7 部署模式
+### 1.6 部署模式
 
 - **公有云**：你自己部署一套，面向全球 agent 开放
 - **私有部署**：企业克隆仓库自行部署，通过 `iss` 区分不同部署实例
@@ -229,8 +221,7 @@ CREATE TABLE refresh_tokens (
 
 | 方法 | 路径 | 说明 | 认证 |
 |------|------|------|------|
-| GET | `/` | 服务索引页（Markdown） | 无 |
-| GET | `/README.md` | 完整使用文档（Markdown） | 无 |
+| GET | `/` | 生态索引页（Markdown） | 无 |
 | POST | `/register` | 提交 handle + JWK 公钥，返回 challenge | 无 |
 | POST | `/register/verify` | 提交 challenge 签名，完成注册 | 无 |
 | POST | `/token` | 用 private_key_jwt 换取 access_token；请求体须含 `audience`（必填） | 无（自证明） |
@@ -240,35 +231,7 @@ CREATE TABLE refresh_tokens (
 | GET | `/jwks.json` | 服务端签名公钥集合 | 无 |
 | GET | `/health` | 健康检查 | 无 |
 
-### 2.8 首页 `/` 内容模板
-
-返回 `Content-Type: text/markdown; charset=utf-8`：
-
-```markdown
-# Hivo Identity
-
-Role: issuer / authentication service
-Issuer: https://id.hivo.ink
-Docs: GET /README.md
-
-## Core Routes
-- GET /README.md — Full documentation (read this first)
-- POST /register — Register agent (public key enrollment)
-- POST /register/verify — Complete registration (challenge verification)
-- POST /token — Exchange private_key_jwt for access_token
-- POST /token/refresh — Refresh access_token
-- GET /me — Current identity info
-- GET /.well-known/openid-configuration — OIDC Discovery metadata
-- GET /jwks.json — Signing public keys
-- GET /health — Health check
-
-## Identity Model
-- Primary key: sub
-- Human-readable name: handle
-- Token format: JWT (EdDSA)
-```
-
-### 2.9 Token 有效期
+### 2.8 Token 有效期
 
 | Token | 有效期 | 说明 |
 |-------|--------|------|
@@ -279,7 +242,7 @@ Docs: GET /README.md
 - refresh_token 过期 → 调用 `POST /token` 重新用私钥签 assertion 换取
 - Agent 持有私钥即可随时重新获取 token，不存在"永久失效"
 
-### 2.10 错误响应格式
+### 2.9 错误响应格式
 
 所有错误响应统一为 JSON：
 
@@ -302,7 +265,7 @@ Docs: GET /README.md
 | 422 | `validation_error` | 请求参数不合法（handle 格式错误等） |
 | 429 | `rate_limited` | 请求频率超限 |
 
-### 2.11 OIDC Discovery（最小子集）
+### 2.10 OIDC Discovery（最小子集）
 
 `GET /.well-known/openid-configuration` 返回：
 
@@ -429,8 +392,7 @@ HTML 公开展示是核心功能。安全约束：
 
 | 方法 | 路径 | 说明 | 认证 |
 |------|------|------|------|
-| GET | `/` | 服务索引页（Markdown） | 无 |
-| GET | `/README.md` | 完整使用文档（Markdown） | 无 |
+| GET | `/` | 生态索引页（Markdown） | 无 |
 | PUT | `/files/{path:path}` | 上传文件 | Bearer |
 | GET | `/files/{path:path}` | 获取文件原文 | Bearer |
 | HEAD | `/files/{path:path}` | 检查文件是否存在 | Bearer |
@@ -440,37 +402,7 @@ HTML 公开展示是核心功能。安全约束：
 | GET | `/p/{share_id}` | 公开访问（无需认证） | 无 |
 | GET | `/health` | 健康检查 | 无 |
 
-### 3.9 首页 `/` 内容模板
-
-返回 `Content-Type: text/markdown; charset=utf-8`：
-
-```markdown
-# Hivo Drop
-
-Role: file storage and sharing service
-Auth: Bearer token issued by trusted issuer
-Docs: GET /README.md
-
-## Core Routes
-- GET /README.md — Full documentation (read this first)
-- PUT /files/{path} — Upload file
-- GET /files/{path} — Get file content
-- HEAD /files/{path} — Check file existence
-- DELETE /files/{path} — Delete file
-- PATCH /files/{path} — Update metadata (visibility, etc.)
-- GET /list?prefix= — List files/directories
-- GET /p/{share_id} — Public access (no auth required)
-- GET /health — Health check
-
-## Rules
-- Accepts any file format (text types rendered inline, binary as attachment download)
-- Default visibility: private
-- Default overwrite: false
-- Max file size: 1 MB
-- Max files per agent: 100 (default)
-```
-
-### 3.10 Token 验证流程
+### 3.9 Token 验证流程
 
 hivo-drop 收到请求后：
 
@@ -488,7 +420,7 @@ hivo-drop 收到请求后：
 TRUSTED_ISSUERS=https://id.hivo.ink
 ```
 
-### 3.11 上传限制
+### 3.10 上传限制
 
 | 限制项 | 默认值 | 说明 |
 |--------|--------|------|
@@ -499,7 +431,7 @@ TRUSTED_ISSUERS=https://id.hivo.ink
 - 文件数检查在写入前执行，超出返回 `403 Forbidden`（附 error: `quota_exceeded`）
 - 配额值未来由独立的 Quota 服务管理，v1 先用固定默认值
 
-### 3.12 错误响应格式
+### 3.11 错误响应格式
 
 所有错误响应统一为 JSON：
 

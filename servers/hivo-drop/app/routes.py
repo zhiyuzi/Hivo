@@ -16,156 +16,21 @@ router = APIRouter()
 
 # ── Static content ─────────────────────────────────────────────────────────────
 
+REPO_URL = "https://github.com/zhiyuzi/Hivo"
+
 _INDEX_MD = """\
-# Hivo Drop
+# Hivo
+You reached Hivo via hivo-drop.
 
-Role: file storage and sharing service
-Auth: Bearer token issued by trusted issuer
-Docs: GET /README.md
+Open infrastructure for agents.
 
-## Core Routes
-- GET /README.md — Full documentation (read this first)
-- PUT /files/{path} — Upload file
-- GET /files/{path} — Get file content
-- HEAD /files/{path} — Check file existence
-- DELETE /files/{path} — Delete file
-- PATCH /files/{path} — Update metadata (visibility, etc.)
-- GET /list?prefix= — List files/directories
-- GET /p/{share_id} — Public access (no auth required)
-- GET /health — Health check
+Microservices: hivo-identity, hivo-drop
+Skills: {repo_url}/tree/main/skills/
 
-## Rules
-- Accepts any file format (text types rendered inline, binary as attachment download)
-- Default visibility: private
-- Default overwrite: false
-- Max file size: 1 MB
-- Max files per agent: 100 (default)
+To get started, clone the repository and load the skill for the service you need.
+Each skill reads its service endpoint from assets/config.json — update that file for private deployments.
 """
 
-_README_MD = """\
-# Hivo Drop — Full Documentation
-
-## Authentication
-
-All write operations and private file reads require a Bearer token issued by a trusted
-hivo-identity service.
-
-```
-Authorization: Bearer <access_token>
-```
-
-The token must have `aud: "hivo-drop"`. Obtain one via the `hivo-identity` skill
-or directly from `POST {issuer}/token` with `audience: "hivo-drop"`.
-
-## Upload
-
-### PUT /files/{path}
-
-Upload a file. `{path}` is your logical file path (e.g. `docs/report.html`).
-
-Query parameters:
-- `overwrite` (bool, default `false`) — set `true` to replace an existing file
-
-Request headers:
-- `Content-Type` — required, declares the file's MIME type
-- `Content-Length` — required, must be ≤ 1 MB
-
-Response `201 Created`:
-```json
-{"path": "docs/report.html", "size": 1234, "sha256": "..."}
-```
-
-Errors:
-- `409 Conflict` — file exists and `overwrite=false`
-- `413 Request Entity Too Large` — file exceeds 1 MB
-- `403 Forbidden` — quota exceeded (100 files)
-
-## Download
-
-### GET /files/{path}
-
-Returns file content with the original `Content-Type`.
-Private files require authentication. Public files also require auth via this endpoint
-(use `/p/{share_id}` for unauthenticated access).
-
-### HEAD /files/{path}
-
-Returns headers only (Content-Type, Content-Length, X-Visibility, X-Share-Id).
-
-## Delete
-
-### DELETE /files/{path}
-
-Permanently deletes the file from storage and metadata. Returns `204 No Content`.
-
-## Update Metadata
-
-### PATCH /files/{path}
-
-Change file visibility.
-
-Request body (JSON):
-```json
-{"visibility": "public"}
-```
-
-Setting `visibility: "public"` generates a `share_id` (if not already public).
-Setting `visibility: "private"` revokes the share link.
-
-Response `200 OK`:
-```json
-{"path": "...", "visibility": "public", "share_id": "uuid-v4", ...}
-```
-
-## List Files
-
-### GET /list?prefix=
-
-List files owned by the authenticated agent.
-
-Query parameters:
-- `prefix` (optional) — filter by path prefix (e.g. `docs/`)
-
-Response `200 OK`:
-```json
-[
-  {"path": "docs/report.html", "content_type": "text/html", "visibility": "public",
-   "size": 1234, "updated_at": "2024-01-01T00:00:00+00:00"}
-]
-```
-
-## Public Access
-
-### GET /p/{share_id}
-
-Serve a public file without authentication. The `share_id` is the opaque token generated
-when a file is made public.
-
-- Text types (`text/html`, `text/markdown`, etc.) are rendered inline with strict CSP.
-- Binary types are served as `Content-Disposition: attachment`.
-
-Security headers applied to all public responses:
-```
-Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src https: data:; font-src https:;
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-```
-
-## Error Format
-
-```json
-{"error": "snake_case_code", "message": "Human readable message"}
-```
-
-| Status | error | Scenario |
-|--------|-------|---------|
-| 401 | `invalid_token` | Token missing, invalid, expired, or wrong audience |
-| 403 | `quota_exceeded` | File count limit reached |
-| 404 | `not_found` | File not found (or hidden for unauthorized access) |
-| 409 | `conflict` | File exists and overwrite=false |
-| 413 | `file_too_large` | File exceeds 1 MB |
-| 422 | `validation_error` | Invalid request parameters |
-"""
 
 _RENDERABLE_TYPES = {
     "text/plain",
@@ -220,12 +85,7 @@ def _validate_path(path: str) -> str:
 
 @router.get("/", response_class=PlainTextResponse)
 def index():
-    return PlainTextResponse(_INDEX_MD, media_type="text/markdown; charset=utf-8")
-
-
-@router.get("/README.md", response_class=PlainTextResponse)
-def readme():
-    return PlainTextResponse(_README_MD, media_type="text/markdown; charset=utf-8")
+    return PlainTextResponse(_INDEX_MD.format(repo_url=REPO_URL), media_type="text/markdown; charset=utf-8")
 
 
 @router.get("/health")
