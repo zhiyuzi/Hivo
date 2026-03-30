@@ -623,48 +623,141 @@ assets/private_key.pem
 
 ---
 
-## 7. 待办事项（Backlog）
+## 7. Skill：hivo-drop
 
-### 7.1 Hivo Mail（邮件）
+### 7.1 定位
+
+位于 `skills/hivo-drop/`。它是 `servers/hivo-drop` 的完整 skill 代理，覆盖文件上传、下载、删除、列表及可见性管理全流程。所有操作均需 Bearer token，token 由 hivo-identity skill 提供。
+
+### 7.2 前置条件
+
+`skills/hivo-identity` 必须已安装并完成注册（`assets/identity.json` 和 `assets/private_key.pem` 存在）。hivo-drop 的所有脚本在运行时自动调用 `../hivo-identity/scripts/get_token.py hivo-drop` 获取 Bearer token，无需用户手动提供。
+
+### 7.3 目录结构
+
+```
+hivo-drop/
+  SKILL.md          ← skill 描述与使用说明
+  scripts/
+    upload.py       ← 上传文件（PUT /files/{path}）
+    download.py     ← 下载文件（GET /files/{path}）
+    delete.py       ← 删除文件（DELETE /files/{path}）
+    list.py         ← 列出文件（GET /list?prefix=）
+    share.py        ← 设置可见性（PATCH /files/{path}），公开时返回分享 URL
+  assets/
+    config.json     ← drop_url，读取 hivo-drop 服务地址
+```
+
+### 7.4 scripts 行为
+
+所有脚本共用两个辅助函数（各自内联）：
+
+- `_load_config()` — 读取 `assets/config.json`，返回 `drop_url`
+- `_get_token()` — 调用 `../hivo-identity/scripts/get_token.py hivo-drop`，返回 access_token
+
+路径定位方式（不依赖运行时工作目录）：
+
+```python
+from pathlib import Path
+ASSETS_DIR = Path(__file__).parent.parent / "assets"
+IDENTITY_GET_TOKEN = Path(__file__).parent.parent.parent / "hivo-identity" / "scripts" / "get_token.py"
+```
+
+**upload.py**
+
+调用方式：`python scripts/upload.py <local_file> <remote_path> [--overwrite]`
+
+1. 读取本地文件，检测 Content-Type（基于文件扩展名，fallback `application/octet-stream`）
+2. 获取 Bearer token
+3. `PUT /files/{remote_path}?overwrite=true/false`，附 `Content-Type` 和 `Content-Length`
+4. 打印结果：`Uploaded: {path} ({size} bytes)`
+
+**download.py**
+
+调用方式：`python scripts/download.py <remote_path> [local_file]`
+
+1. 获取 Bearer token
+2. `GET /files/{remote_path}`
+3. 若提供 `local_file`：写入磁盘，打印 `Saved: {local_file}`
+4. 若未提供：内容写入 stdout（适合文本文件管道使用）
+
+**delete.py**
+
+调用方式：`python scripts/delete.py <remote_path>`
+
+1. 获取 Bearer token
+2. `DELETE /files/{remote_path}`
+3. 打印 `Deleted: {path}`
+
+**list.py**
+
+调用方式：`python scripts/list.py [prefix]`
+
+1. 获取 Bearer token
+2. `GET /list?prefix={prefix}`
+3. 表格打印：path、content_type、visibility、size
+
+**share.py**
+
+调用方式：`python scripts/share.py <remote_path> public|private`
+
+1. 获取 Bearer token
+2. `PATCH /files/{remote_path}` with `{"visibility": "public"|"private"}`
+3. 若设为 public：打印 `Public URL: {drop_url}/p/{share_id}`
+4. 若设为 private：打印 `File is now private. Share link revoked.`
+
+### 7.5 assets/config.json
+
+```json
+{"drop_url": "https://drop.hivo.ink"}
+```
+
+唯一配置项。所有脚本运行时读取此文件作为服务地址。可改为私有部署地址。
+
+---
+
+## 8. 待办事项（Backlog）
+
+### 8.1 Hivo Mail（邮件）
 
 - 基于 hivo-identity 的身份体系扩展
 - 让 agent 拥有可收发消息的地址
 - 邮件服务是 hivo-identity **上层的产品能力**，不是底座
 - 独立仓库，独立微服务
 
-### 7.2 Quota（hivo-drop 配额）
+### 8.2 Quota（hivo-drop 配额）
 
 - 控制每个 agent 在 hivo-drop 中可上传的文件数量
 - 基于 `sub`（per-agent）做配额管理
 - v1 使用固定默认值（100），未来可支持动态调整
 - 独立仓库，独立微服务
 
-### 7.3 Hivo Group（组织/团队管理）
+### 8.3 Hivo Group（组织/团队管理）
 
 - 基于 hivo-identity 的身份体系扩展
 - 管理 agent 的组织/团队归属关系
 - handle 中的 namespace 不等于 group——归属关系由此服务决定
 - 独立仓库，独立微服务
 
-### 7.4 Hivo Pay（支付）
+### 8.4 Hivo Pay（支付）
 
 - 为 agent 提供支付能力
 - 具体方案待议
 - 独立仓库，独立微服务
 
-### 7.5 hivo-identity：速率限制
+### 8.5 hivo-identity：速率限制
 
 - 对高频接口（`/register`、`/token`）实现请求速率限制
 - 超限返回 `429 rate_limited`
 - v1 未实现，后续按实际需求确定限流策略
 
-### 7.6 hivo-identity：Profile 修改接口
+### 8.6 hivo-identity：Profile 修改接口
 
 - 新增 `PATCH /me`，需要 Bearer 认证
 - 支持修改 `display_name` 和 `email` 两个字段
 - `sub` 和 `handle` 不可修改
 
-### 7.7 Hivo Calendar（日历）
+### 8.7 Hivo Calendar（日历）
 
 - 为 agent 提供日历与日程管理能力
 - 支持创建、查询、更新、删除事件（Event）
@@ -672,7 +765,7 @@ assets/private_key.pem
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 7.8 Hivo Task（任务）
+### 8.8 Hivo Task（任务）
 
 - 为 agent 提供任务管理能力（类 Todo/Issue）
 - 支持创建、分配、更新状态、关闭任务
@@ -680,7 +773,7 @@ assets/private_key.pem
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 7.9 Hivo Event（事件驱动：Cron + Webhook）
+### 8.9 Hivo Event（事件驱动：Cron + Webhook）
 
 **Cron（确定做）：**
 - 为 agent 注册定时任务，到时间后由平台回调 agent 指定 URL
@@ -695,7 +788,7 @@ assets/private_key.pem
 - 问题三：agent 完全可以自己暴露 HTTP 端点直接接收外部推送，不需要平台中转
 - **结论**：Cron 是刚需，Webhook 中转价值有限，暂不做。如未来有明确需求场景再议。
 
-### 7.10 Hivo DB（关系型数据库）
+### 8.10 Hivo DB（关系型数据库）
 
 - 为 agent 提供结构化数据存储能力
 - 每个 agent（按 `sub`）拥有独立数据库实例或 schema 命名空间
@@ -703,7 +796,7 @@ assets/private_key.pem
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 7.11 Hivo KV（键值存储）
+### 8.11 Hivo KV（键值存储）
 
 - 为 agent 提供轻量键值存储能力
 - 每个 agent（按 `sub`）拥有独立命名空间
@@ -712,7 +805,7 @@ assets/private_key.pem
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 7.12 Hivo Map（地图服务）
+### 8.12 Hivo Map（地图服务）
 
 - 为 agent 提供地理位置与地图能力
 - 支持地理编码（地址 → 坐标）、反地理编码（坐标 → 地址）、路径规划、POI 搜索
@@ -722,22 +815,22 @@ assets/private_key.pem
 
 ---
 
-## 8. 部署与配置
+## 9. 部署与配置
 
-### 8.1 公有云部署
+### 9.1 公有云部署
 
 - 根域名入口：`https://hivo.ink`
 - hivo-identity：`https://id.hivo.ink`
 - hivo-drop：`https://drop.hivo.ink`（API + 公开访问均在此域名）
 
-### 8.2 私有部署
+### 9.2 私有部署
 
 企业克隆仓库后自行部署：
 - 修改 `iss` 为自己的域名
 - hivo-drop 配置 `TRUSTED_ISSUERS` 指向自己的 hivo-identity 实例
 - 数据完全隔离，`iss` 不同即为不同信任域
 
-### 8.3 关键配置项
+### 9.3 关键配置项
 
 **hivo-identity：**
 ```
@@ -756,7 +849,7 @@ R2_SECRET_ACCESS_KEY=xxx
 R2_BUCKET_NAME=hivo-drop
 ```
 
-### 8.4 Python 工具链规范
+### 9.4 Python 工具链规范
 
 所有微服务统一使用 [uv](https://docs.astral.sh/uv/) 管理 Python 依赖，不使用 pip / poetry / pipenv。
 
