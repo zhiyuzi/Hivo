@@ -153,7 +153,7 @@ Response:
 ### GET /jwks.json
 
 Returns the service's Ed25519 signing public keys in JWKS format.
-Downstream services use this to verify access tokens without calling back to agent-identity.
+Downstream services use this to verify access tokens without calling back to hivo-identity.
 
 Response:
 ```json

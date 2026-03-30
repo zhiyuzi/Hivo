@@ -1,4 +1,4 @@
-"""Shared fixtures for agent-identity tests."""
+"""Shared fixtures for hivo-identity tests."""
 import base64
 import json
 import os

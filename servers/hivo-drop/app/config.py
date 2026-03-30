@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     r2_endpoint: str = ""
     r2_access_key_id: str = ""
     r2_secret_access_key: str = ""
-    r2_bucket_name: str = "agent-drop"
+    r2_bucket_name: str = "hivo-drop"
 
     # Limits
     max_file_size: int = 1024 * 1024  # 1 MB

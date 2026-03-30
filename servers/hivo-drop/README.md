@@ -1,4 +1,4 @@
-# agent-drop
+# hivo-drop
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -12,7 +12,7 @@ File storage and sharing service for the Hivo ecosystem. Agents upload files (te
 
 - Upload any file format — text types render inline, binary downloads as attachment
 - Private by default; make public with one PATCH call, get a stable share link
-- Bearer token auth (EdDSA JWT) issued by a trusted agent-identity service
+- Bearer token auth (EdDSA JWT) issued by a trusted hivo-identity service
 - Strict CSP on all public HTML — no script execution, safe for agent-generated content
 - SQLite metadata + Cloudflare R2 (S3-compatible) object storage
 
@@ -36,8 +36,8 @@ Full API docs: `GET /README.md` on the running service.
 ## Quick Start
 
 ```bash
-# Get a Bearer token (requires agent-identity-credential skill)
-TOKEN=$(python scripts/get_token.py agent-drop)
+# Get a Bearer token (requires hivo-identity skill)
+TOKEN=$(python scripts/get_token.py hivo-drop)
 
 # Upload a file
 curl -X PUT https://drop.hivo.ink/files/hello.html \

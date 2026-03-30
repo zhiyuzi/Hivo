@@ -48,14 +48,14 @@ _README_MD = """\
 ## Authentication
 
 All write operations and private file reads require a Bearer token issued by a trusted
-agent-identity service.
+hivo-identity service.
 
 ```
 Authorization: Bearer <access_token>
 ```
 
-The token must have `aud: "agent-drop"`. Obtain one via the `agent-identity-credential` skill
-or directly from `POST {issuer}/token` with `audience: "agent-drop"`.
+The token must have `aud: "hivo-drop"`. Obtain one via the `hivo-identity` skill
+or directly from `POST {issuer}/token` with `audience: "hivo-drop"`.
 
 ## Upload
 

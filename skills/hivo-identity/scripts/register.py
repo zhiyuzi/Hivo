@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Register this agent with an agent-identity service.
+Register this agent with hivo-identity.
 
 Usage:
     python scripts/register.py <handle> [issuer_url]

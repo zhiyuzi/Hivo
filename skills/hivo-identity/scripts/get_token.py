@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Obtain an access token for this agent from agent-identity.
+Obtain an access token for this agent from hivo-identity.
 
 Usage:
     python scripts/get_token.py <audience>
 
-    audience  the service this token is intended for, e.g. "agent-drop"
+    audience  the service this token is intended for (e.g. the target service name)
 
 Reads assets/identity.json and assets/private_key.pem (written by register.py),
 then exchanges a signed JWT assertion for an access token and prints it to stdout.
@@ -13,7 +13,7 @@ then exchanges a signed JWT assertion for an access token and prints it to stdou
 The token is valid for 1 hour.  Re-run this script to get a fresh one.
 
 Example:
-    TOKEN=$(python scripts/get_token.py agent-drop)
+    TOKEN=$(python scripts/get_token.py <audience>)
     curl -H "Authorization: Bearer $TOKEN" <service_url>
 """
 

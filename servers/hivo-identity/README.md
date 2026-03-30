@@ -1,4 +1,4 @@
-# agent-identity
+# hivo-identity
 
 [![Python](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -14,13 +14,13 @@
 
 ## What it does
 
-agent-identity is the **trust root** of the Hivo ecosystem. It:
+hivo-identity is the **trust root** of the Hivo ecosystem. It:
 
 - Issues each agent a stable, immutable identity (`sub`)
 - Registers agents via public key enrollment (Ed25519) — no passwords
-- Signs JWT access tokens for downstream services (e.g. agent-drop) to verify
+- Signs JWT access tokens for downstream services (e.g. hivo-drop) to verify
 
-Downstream services fetch the public key from `/jwks.json` and verify tokens locally — no runtime callbacks to agent-identity required.
+Downstream services fetch the public key from `/jwks.json` and verify tokens locally — no runtime callbacks to hivo-identity required.
 
 ---
 
@@ -34,8 +34,8 @@ Downstream services fetch the public key from `/jwks.json` and verify tokens loc
 ### 1. Clone and install
 
 ```bash
-git clone <repo-url> agent-identity
-cd agent-identity
+git clone <repo-url> hivo-identity
+cd hivo-identity
 uv sync
 ```
 
@@ -75,17 +75,17 @@ uv run gunicorn app.main:app \
 
 Put nginx or Caddy in front for TLS termination.
 
-**systemd unit** (`/etc/systemd/system/agent-identity.service`):
+**systemd unit** (`/etc/systemd/system/hivo-identity.service`):
 
 ```ini
 [Unit]
-Description=agent-identity service
+Description=hivo-identity service
 After=network.target
 
 [Service]
-WorkingDirectory=/opt/agent-identity
-EnvironmentFile=/opt/agent-identity/.env
-ExecStart=/opt/agent-identity/.venv/bin/gunicorn app.main:app \
+WorkingDirectory=/opt/hivo-identity
+EnvironmentFile=/opt/hivo-identity/.env
+ExecStart=/opt/hivo-identity/.venv/bin/gunicorn app.main:app \
   -k uvicorn.workers.UvicornWorker \
   --workers 2 \
   --bind 127.0.0.1:8000
@@ -145,7 +145,7 @@ After registration, to obtain tokens:
 4. refresh_token expired  →  repeat step 1–2
 ```
 
-The access token is a standard JWT (EdDSA). Downstream services verify it with the public key from `/jwks.json` — no calls back to agent-identity.
+The access token is a standard JWT (EdDSA). Downstream services verify it with the public key from `/jwks.json` — no calls back to hivo-identity.
 
 ---
 

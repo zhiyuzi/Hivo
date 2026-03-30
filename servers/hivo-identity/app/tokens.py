@@ -1,4 +1,4 @@
-"""JWT creation and verification for agent-identity."""
+"""JWT creation and verification for hivo-identity."""
 import base64
 import hashlib
 import json

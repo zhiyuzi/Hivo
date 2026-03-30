@@ -1,4 +1,4 @@
-"""Tests for agent-drop API routes."""
+"""Tests for hivo-drop API routes."""
 import pytest
 from .conftest import make_token, ISSUER, SUB, HANDLE
 

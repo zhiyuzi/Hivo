@@ -1,5 +1,5 @@
 """
-Shared fixtures for agent-drop tests.
+Shared fixtures for hivo-drop tests.
 
 Strategy:
 - Patch app.auth.get_jwks to return a real Ed25519 test key (no HTTP)
@@ -35,7 +35,7 @@ HANDLE = "testbot@test"
 def make_token(
     sub: str = SUB,
     iss: str = ISSUER,
-    aud: str = "agent-drop",
+    aud: str = "hivo-drop",
     handle: str = HANDLE,
     exp_delta: int = 3600,
 ) -> str:

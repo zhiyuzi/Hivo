@@ -1,5 +1,5 @@
 [project]
-name = "agent-drop"
+name = "hivo-drop"
 version = "0.1.0"
 description = "Agent file storage and sharing service"
 requires-python = ">=3.12"

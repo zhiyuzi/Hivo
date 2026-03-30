@@ -116,7 +116,7 @@ Open infrastructure for agents.
 - 不允许特殊符号（`.`、`_`、空格等）
 - `@` 后的 namespace 只是命名空间标识符，**不关联任何组织实体**
 - `a1@foo` 和 `a2@foo` 可能属于同一组织，也可能不是——hivo-identity 不关心
-- 组织/团队的归属关系由其他微服务（如 agent-group）决定
+- 组织/团队的归属关系由其他微服务（如 hivo-group）决定
 - handle 全局唯一
 
 ### 2.4 数据模型（SQLite3）

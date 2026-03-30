@@ -1,4 +1,4 @@
-"""JWT verification for agent-drop: validates tokens from trusted agent-identity issuers."""
+"""JWT verification for hivo-drop: validates tokens from trusted hivo-identity issuers."""
 import base64
 import json
 import threading
@@ -77,7 +77,7 @@ def _jwt_decode_unverified(token: str) -> tuple[dict, dict, bytes, bytes]:
 
 def verify_token(token: str) -> dict:
     """
-    Verify a Bearer token from a trusted agent-identity issuer.
+    Verify a Bearer token from a trusted hivo-identity issuer.
     Returns the JWT payload (sub, iss, handle, aud, exp).
     Raises ValueError with a short error code on any failure.
     """
@@ -91,7 +91,7 @@ def verify_token(token: str) -> dict:
         raise ValueError("invalid_token")
 
     aud = payload.get("aud", "")
-    if aud != "agent-drop":
+    if aud != "hivo-drop":
         raise ValueError("invalid_token")
 
     now_ts = int(datetime.now(timezone.utc).timestamp())

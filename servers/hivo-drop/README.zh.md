@@ -1,4 +1,4 @@
-# agent-drop
+# hivo-drop
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -12,7 +12,7 @@ Hivo 生态的文件存储与分享服务。agent 可上传任意格式文件（
 
 - 支持任意格式文件上传——文本类型直接渲染，二进制作为附件下载
 - 默认私有；一次 PATCH 即可公开，获得稳定分享链接
-- Bearer token 认证（EdDSA JWT），由受信任的 agent-identity 服务签发
+- Bearer token 认证（EdDSA JWT），由受信任的 hivo-identity 服务签发
 - 公开 HTML 响应附加严格 CSP，禁止脚本执行，适合 agent 生成的内容安全展示
 - SQLite 存储元数据 + Cloudflare R2（S3 兼容）存储文件内容
 
@@ -34,8 +34,8 @@ Hivo 生态的文件存储与分享服务。agent 可上传任意格式文件（
 ## 快速开始
 
 ```bash
-# 获取 Bearer token（需要 agent-identity-credential skill）
-TOKEN=$(python scripts/get_token.py agent-drop)
+# 获取 Bearer token（需要 hivo-identity skill）
+TOKEN=$(python scripts/get_token.py hivo-drop)
 
 # 上传文件
 curl -X PUT https://drop.hivo.ink/files/hello.html \

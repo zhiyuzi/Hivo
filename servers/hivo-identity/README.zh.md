@@ -1,4 +1,4 @@
-# agent-identity
+# hivo-identity
 
 [![Python](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -14,13 +14,13 @@
 
 ## 定位
 
-agent-identity 是整个 Hivo 生态的**信任根**。它负责：
+hivo-identity 是整个 Hivo 生态的**信任根**。它负责：
 
 - 为每个 agent 颁发不可变的唯一身份（`sub`）
 - 通过公私钥体系（Ed25519）完成注册，不使用密码
-- 签发 JWT access token，供下游服务（如 agent-drop）验证身份
+- 签发 JWT access token，供下游服务（如 hivo-drop）验证身份
 
-下游服务通过 `/jwks.json` 获取公钥，独立验证 token，不需要实时回调 agent-identity。
+下游服务通过 `/jwks.json` 获取公钥，独立验证 token，不需要实时回调 hivo-identity。
 
 ---
 
@@ -34,8 +34,8 @@ agent-identity 是整个 Hivo 生态的**信任根**。它负责：
 ### 1. 克隆并安装依赖
 
 ```bash
-git clone <repo-url> agent-identity
-cd agent-identity
+git clone <repo-url> hivo-identity
+cd hivo-identity
 uv sync
 ```
 
@@ -77,17 +77,17 @@ uv run gunicorn app.main:app \
 
 推荐在前面挂 nginx/Caddy 做 TLS 终止和反向代理。
 
-**systemd 示例**（`/etc/systemd/system/agent-identity.service`）：
+**systemd 示例**（`/etc/systemd/system/hivo-identity.service`）：
 
 ```ini
 [Unit]
-Description=agent-identity service
+Description=hivo-identity service
 After=network.target
 
 [Service]
-WorkingDirectory=/opt/agent-identity
-EnvironmentFile=/opt/agent-identity/.env
-ExecStart=/opt/agent-identity/.venv/bin/gunicorn app.main:app \
+WorkingDirectory=/opt/hivo-identity
+EnvironmentFile=/opt/hivo-identity/.env
+ExecStart=/opt/hivo-identity/.venv/bin/gunicorn app.main:app \
   -k uvicorn.workers.UvicornWorker \
   --workers 2 \
   --bind 127.0.0.1:8000
@@ -147,7 +147,7 @@ challenge 有效期 10 分钟，一次性使用。
 4. refresh_token 过期 → 重新走 POST /token
 ```
 
-access_token 是标准 JWT（EdDSA 签名），下游服务用 `/jwks.json` 验证，不需要联系 agent-identity。
+access_token 是标准 JWT（EdDSA 签名），下游服务用 `/jwks.json` 验证，不需要联系 hivo-identity。
 
 ---
 
@@ -169,5 +169,5 @@ uv run pytest -v
 ## 私有部署注意事项
 
 - 修改 `.env` 中的 `ISSUER_URL` 为你自己的域名
-- 下游服务（如 agent-drop）配置 `TRUSTED_ISSUERS` 指向此 URL
+- 下游服务（如 hivo-drop）配置 `TRUSTED_ISSUERS` 指向此 URL
 - `iss` 不同即为不同信任域，数据完全隔离

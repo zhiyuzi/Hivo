@@ -52,7 +52,7 @@ class VerifyResponse(BaseModel):
 class TokenRequest(BaseModel):
     grant_type: str = "urn:ietf:params:oauth:grant-type:jwt-bearer"
     assertion: str  # private_key_jwt signed by agent
-    audience: str   # intended recipient service, e.g. "agent-drop"
+    audience: str   # intended recipient service, e.g. "hivo-drop"
 
     @field_validator("grant_type")
     @classmethod

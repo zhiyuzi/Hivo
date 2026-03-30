@@ -1,9 +1,9 @@
 {
-  "skill_name": "agent-identity-credential",
+  "skill_name": "hivo-identity",
   "evals": [
     {
       "id": 1,
-      "prompt": "I want to register my agent with agent-identity. My handle should be 'mybot@acme'.",
+      "prompt": "I want to register my agent with hivo-identity. My handle should be 'mybot@acme'.",
       "expected_output": "Runs register.py with just the handle (no URL), letting the script read issuer_url from assets/config.json. Shows the sub and confirms credentials were written to assets/.",
       "files": [],
       "expectations": [
