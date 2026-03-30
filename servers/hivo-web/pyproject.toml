@@ -1,0 +1,11 @@
+[project]
+name = "hivo-web"
+version = "0.1.0"
+description = "Hivo Web: root domain ecosystem index"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.135.2",
+    "uvicorn[standard]>=0.42.0",
+    "pydantic-settings>=2.13.1",
+    "gunicorn>=25.3.0",
+]
