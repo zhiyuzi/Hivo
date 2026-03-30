@@ -17,7 +17,7 @@ Files in `assets/`:
 
 | File | Committed? | Description |
 |------|-----------|-------------|
-| `assets/config.json` | Yes | Deployment config: `issuer_url` (edit before registering) |
+| `assets/config.json` | Yes | Deployment config: `issuer_url` — read by all scripts on every run as the trust root for all API calls |
 | `assets/private_key.pem` | **No — secret** | Ed25519 private key |
 | `assets/public_key.jwk` | No | Corresponding public key (JWK), generated artifact |
 | `assets/identity.json` | No | Registration result: `sub`, `handle`, `iss` |
@@ -83,8 +83,8 @@ curl -H "Authorization: Bearer $TOKEN" <service_url>
 
 | Step | Condition | Action |
 |------|-----------|--------|
-| 1 | Cached access token still valid (>60s remaining) | Return it immediately |
-| 2 | Access token expired; refresh token still valid (up to 30 days) | Call `POST /token/refresh`, update cache |
+| 1 | Cached access token has >60s remaining | Return it immediately |
+| 2 | Access token expired (or expiring within 60s); refresh token still valid (up to 30 days) | Call `POST /token/refresh`, update cache |
 | 3 | Refresh token expired or missing | Call `POST /token` with a fresh private_key_jwt assertion, update cache |
 
 Tokens are stored in `assets/token_cache.json` (gitignored). Each entry is keyed by audience, so tokens for different services are tracked independently.
@@ -106,8 +106,6 @@ status:       active
 created_at:   2025-...
 ```
 
-Also shows `display_name` and `email` if set.
-
 ---
 
 ## Troubleshooting
@@ -125,10 +123,32 @@ Also shows `display_name` and `email` if set.
 
 ## When helping the user
 
-- **If no `assets/identity.json` exists**: registration is required. Ask for a handle and confirm the issuer URL (default: `https://id.hivo.ink`), then run `register.py`.
+### Exact commands — use these verbatim
+
+```bash
+# Register (handle is a positional argument — no flags)
+python scripts/register.py <handle>
+# Example:
+python scripts/register.py mybot@acme
+
+# Get a token (audience is required — always ask the user which service they are calling)
+python scripts/get_token.py <audience>
+# Example:
+python scripts/get_token.py hivo-drop
+
+# Check identity
+python scripts/me.py
+```
+
+> **Do not invent flags like `--handle` or paths like `~/.hivo/credentials`. The commands above are the only correct forms.**
+
+### Decision tree
+
+- **If no `assets/identity.json` exists**: registration is required. Ask for a handle, then run `python scripts/register.py <handle>`. After registration, the following files are written — clarify that all are gitignored:
+  - `assets/private_key.pem` — **secret, never commit**
+  - `assets/public_key.jwk`
+  - `assets/identity.json` — contains `sub`, `handle`, `iss`
 - **If `assets/identity.json` exists**: read it to show the user their `sub` and `handle` before doing anything else.
-- **Getting a token**: always run `get_token.py <audience>` and capture stdout. Ask the user which service they are calling to determine the audience.
-- **Using the token**: pass it as `Authorization: Bearer <token>` to any Hivo service.
-- **Checking identity info**: run `me.py` — do not ask the user to call the API manually. Run the script and show them the output.
-- **Token freshness**: you do not need to track token expiry yourself — `get_token.py` handles caching and refresh automatically. Just call it before each service request.
-- After registration, clarify that `private_key.pem`, `public_key.jwk`, `identity.json`, and `token_cache.json` are all gitignored. Only `assets/config.json` is committed.
+- **Getting a token**: first ask the user which service they are calling — that is the `audience`. Then run `python scripts/get_token.py <audience>` and capture stdout. Pass the result as `Authorization: Bearer <token>`.
+- **Checking identity info**: run `python scripts/me.py` — do not ask the user to call the API manually.
+- **Token freshness**: you do not need to track token expiry — `get_token.py` handles caching and refresh automatically. Just call it before each service request.

@@ -10,7 +10,7 @@ Usage:
 Token caching:
   Access tokens (valid 1 hour) and refresh tokens (valid 30 days) are cached in
   assets/token_cache.json.  On each run the script tries, in order:
-    1. Return a cached access token that is still valid (with a 60s buffer).
+    1. Return a cached access token that still has >60s remaining.
     2. Use the cached refresh token to get a new pair from POST /token/refresh.
     3. Fall back to the full private_key_jwt assertion flow via POST /token.
   Steps 2 and 3 update the cache automatically.
@@ -154,7 +154,7 @@ def main() -> None:
     cache = _load_cache()
     now = int(time.time())
 
-    # 1. Cached access token still valid (60s buffer)
+    # 1. Cached access token still valid (60s buffer avoids serving a token that expires in transit)
     cached_access = cache.get(audience, {}).get("access_token")
     if cached_access and _jwt_exp(cached_access) > now + 60:
         print(cached_access)

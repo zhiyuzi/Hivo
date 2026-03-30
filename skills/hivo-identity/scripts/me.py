@@ -72,10 +72,6 @@ def main() -> None:
     print(f"sub:          {data['sub']}")
     print(f"handle:       {data['handle']}")
     print(f"status:       {data['status']}")
-    if data.get("display_name"):
-        print(f"display_name: {data['display_name']}")
-    if data.get("email"):
-        print(f"email:        {data['email']}")
     print(f"created_at:   {data['created_at']}")
 
 

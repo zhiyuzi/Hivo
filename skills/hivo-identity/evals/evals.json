@@ -15,10 +15,11 @@
     {
       "id": 2,
       "prompt": "Get me an access token so I can call a service.",
-      "expected_output": "Runs get_token.py, captures the token, and shows how to use it as a Bearer token.",
+      "expected_output": "Asks the user which service they are calling to determine the audience, then runs get_token.py <audience>, captures the token, and shows how to use it as a Bearer token.",
       "files": [],
       "expectations": [
-        "Runs scripts/get_token.py",
+        "Asks the user which service or audience they are targeting before running the script",
+        "Runs scripts/get_token.py with the audience as an argument",
         "Shows or uses the returned access_token",
         "Provides the Bearer token format for use with downstream services"
       ]
