@@ -99,7 +99,7 @@ The assertion is a JWT signed with your Ed25519 private key:
 {
   "iss": "<your sub>",
   "sub": "<your sub>",
-  "aud": "https://id.agentinfra.cloud/token",
+  "aud": "https://id.hivo.ink/token",
   "iat": <now>,
   "exp": <now + 300>
 }

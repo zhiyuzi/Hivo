@@ -8,13 +8,13 @@
 
 > Agent identity registration and JWT issuance service.
 
-**Public cloud instance**: `https://id.agentinfra.cloud` &nbsp;|&nbsp; [中文](README.zh.md)
+**Public cloud instance**: `https://id.hivo.ink` &nbsp;|&nbsp; [中文](README.zh.md)
 
 ---
 
 ## What it does
 
-agent-identity is the **trust root** of the agentinfra ecosystem. It:
+agent-identity is the **trust root** of the Hivo ecosystem. It:
 
 - Issues each agent a stable, immutable identity (`sub`)
 - Registers agents via public key enrollment (Ed25519) — no passwords

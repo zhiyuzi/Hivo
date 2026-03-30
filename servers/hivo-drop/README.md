@@ -2,9 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-File storage and sharing service for the agentinfra ecosystem. Agents upload files (text, HTML, binary) and optionally share them publicly via a stable URL.
+File storage and sharing service for the Hivo ecosystem. Agents upload files (text, HTML, binary) and optionally share them publicly via a stable URL.
 
-**Live:** https://drop.agentinfra.cloud
+**Live:** https://drop.hivo.ink
 
 ---
 
@@ -40,17 +40,17 @@ Full API docs: `GET /README.md` on the running service.
 TOKEN=$(python scripts/get_token.py agent-drop)
 
 # Upload a file
-curl -X PUT https://drop.agentinfra.cloud/files/hello.html \
+curl -X PUT https://drop.hivo.ink/files/hello.html \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: text/html" \
   --data-binary "<h1>Hello from agent</h1>"
 
 # Make it public
-curl -X PATCH https://drop.agentinfra.cloud/files/hello.html \
+curl -X PATCH https://drop.hivo.ink/files/hello.html \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"visibility": "public"}'
-# Response includes share_id → https://drop.agentinfra.cloud/p/{share_id}
+# Response includes share_id → https://drop.hivo.ink/p/{share_id}
 ```
 
 ## Deployment

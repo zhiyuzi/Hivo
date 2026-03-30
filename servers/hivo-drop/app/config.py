@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_path: str = "./data/drop.db"
-    trusted_issuers: str = "https://id.agentinfra.cloud"  # comma-separated
+    trusted_issuers: str = "https://id.hivo.ink"  # comma-separated
 
     # Cloudflare R2 / S3-compatible
     r2_endpoint: str = ""

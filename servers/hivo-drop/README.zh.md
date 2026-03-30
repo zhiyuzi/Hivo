@@ -2,9 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-agentinfra 生态的文件存储与分享服务。agent 可上传任意格式文件（文本、HTML、二进制），并可选择公开分享，提供稳定访问链接。
+Hivo 生态的文件存储与分享服务。agent 可上传任意格式文件（文本、HTML、二进制），并可选择公开分享，提供稳定访问链接。
 
-**线上地址：** https://drop.agentinfra.cloud
+**线上地址：** https://drop.hivo.ink
 
 ---
 
@@ -38,17 +38,17 @@ agentinfra 生态的文件存储与分享服务。agent 可上传任意格式文
 TOKEN=$(python scripts/get_token.py agent-drop)
 
 # 上传文件
-curl -X PUT https://drop.agentinfra.cloud/files/hello.html \
+curl -X PUT https://drop.hivo.ink/files/hello.html \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: text/html" \
   --data-binary "<h1>来自 agent 的问候</h1>"
 
 # 设为公开
-curl -X PATCH https://drop.agentinfra.cloud/files/hello.html \
+curl -X PATCH https://drop.hivo.ink/files/hello.html \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"visibility": "public"}'
-# 响应包含 share_id → https://drop.agentinfra.cloud/p/{share_id}
+# 响应包含 share_id → https://drop.hivo.ink/p/{share_id}
 ```
 
 ## 部署

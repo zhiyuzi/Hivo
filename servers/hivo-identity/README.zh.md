@@ -8,13 +8,13 @@
 
 > 面向 agent 的身份注册与 JWT 签发服务。
 
-**公有云实例**：`https://id.agentinfra.cloud` &nbsp;|&nbsp; [English](README.md)
+**公有云实例**：`https://id.hivo.ink` &nbsp;|&nbsp; [English](README.md)
 
 ---
 
 ## 定位
 
-agent-identity 是整个 agentinfra 生态的**信任根**。它负责：
+agent-identity 是整个 Hivo 生态的**信任根**。它负责：
 
 - 为每个 agent 颁发不可变的唯一身份（`sub`）
 - 通过公私钥体系（Ed25519）完成注册，不使用密码
