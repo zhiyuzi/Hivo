@@ -1,61 +1,63 @@
-# 技术规格：Agent Identity & Agent Drop
+# Hivo 技术规格
 
 ## 1. 项目总览
 
 ### 1.1 仓库结构
 
-所有仓库统一放在 `hivo/` 根目录下，每个子目录是独立 git 仓库：
+整个项目是一个 monorepo，根目录为 `hivo/`：
 
 ```
 hivo/
-  hivo-identity/             ← 独立仓库，身份服务
-  hivo-drop/                 ← 独立仓库，文件存储服务
-  hivo/                 ← 独立仓库，生态发现 skill
-  hivo-identity/  ← 独立仓库，身份凭据 skill
-  docs/                       ← 本文档所在位置
+  servers/
+    hivo-identity/           ← 微服务：身份注册、token 签发
+    hivo-drop/               ← 微服务：文件存储与公开分享
+  skills/
+    hivo-identity/           ← Skill：hivo-identity 的完整 skill 代理
+    hivo-drop/               ← Skill：hivo-drop 的完整 skill 代理
+  docs/                      ← 本文档所在位置
 ```
 
-### 1.2 各仓库职责
+### 1.2 各目录职责
 
-| 仓库 | 类型 | 职责 |
+| 目录 | 类型 | 职责 |
 |------|------|------|
-| `hivo-identity` | 微服务 | 身份注册、token 签发、JWKS 公钥发布 |
-| `hivo-drop` | 微服务 | 文件存储与公开分享（支持任意格式，文本/HTML/二进制均可） |
-| `Hivo` | Skill | 生态入口，描述所有可用服务及其使用方式 |
-| `hivo-identity` | Skill | 持有并管理 agent 身份凭据，供 agent 运行时使用 |
+| `servers/hivo-identity` | 微服务 | 身份注册、token 签发、JWKS 公钥发布 |
+| `servers/hivo-drop` | 微服务 | 文件存储与公开分享（支持任意格式，文本/HTML/二进制均可） |
+| `skills/hivo-identity` | Skill | hivo-identity 的完整 skill 代理，覆盖注册、鉴权、token 管理全流程 |
+| `skills/hivo-drop` | Skill | hivo-drop 的完整 skill 代理，覆盖上传、下载、分享、visibility 管理全流程 |
 
 ### 1.3 服务关系与耦合原则
 
 依赖关系：
 
 ```
-hivo-identity          ← 底层，不依赖任何其他仓库
-hivo-drop              ← 依赖 hivo-identity（token 验证）
-hivo-identity ← 依赖 hivo-identity（注册与换 token）
-Hivo              ← 生态发现入口，列出所有服务
+servers/hivo-identity          ← 底层，不依赖任何其他服务
+servers/hivo-drop              ← 依赖 hivo-identity（token 验证）
+skills/hivo-identity           ← 依赖 servers/hivo-identity（注册与换 token）
+skills/hivo-drop               ← 依赖 servers/hivo-drop（文件操作）
 ```
 
 **耦合原则（必须遵守）：**
 
-- 每个仓库只能显式引用它直接依赖的上游，**不得引用与自身无依赖关系的其他仓库**
-- 以 Skill 为例：`hivo-identity` 的职责是管理凭据，它依赖 hivo-identity，所以可以引用 hivo-identity 的 URL 和接口。但它与 hivo-drop 没有直接依赖，因此 SKILL.md 里**不得出现 hivo-drop 的名字或 URL**
+- 每个目录只能显式引用它直接依赖的上游，**不得引用与自身无依赖关系的其他目录**
+- 以 Skill 为例：`skills/hivo-identity` 的职责是管理凭据，它依赖 `servers/hivo-identity`，所以可以引用 hivo-identity 的 URL 和接口。但它与 hivo-drop 没有直接依赖，因此 SKILL.md 里**不得出现 hivo-drop 的名字或 URL**
 - `.md` 文件同样是代码，适用高内聚、低耦合原则：该依赖的写清楚，不该依赖的不要提
-- 生态发现（"有哪些服务"）是 `Hivo` skill 的职责，不是每个具体 skill 的职责
+- 生态发现（"有哪些服务"）由根域名 `https://hivo.ink` 负责，不是每个具体 skill 的职责
 
 简记：**谁调用谁，谁才能提谁。**
 
 ### 1.4 技术栈
 
-- 微服务：FastAPI + SQLite3 + Pydantic
+- 微服务：uv + FastAPI + SQLite3 + Pydantic
 - hivo-drop 额外依赖 Cloudflare R2
-- hivo-identity：纯 Python 脚本，无框架依赖
+- Skills：纯 Python 脚本，无框架依赖
 
 ### 1.5 根域名入口
 
 `https://hivo.ink` 作为整个生态的运行时发现入口，返回 `Content-Type: text/markdown; charset=utf-8`：
 
 ```markdown
-# AgentInfra
+# Hivo
 
 Open infrastructure for agents.
 
@@ -536,33 +538,19 @@ aud        — 这个 token 给谁用（资源服务校验）
 
 ---
 
-## 5. Skill：Hivo
+## 5. 生态发现
 
-### 5.1 定位
+### 5.1 运行时发现
 
-这是一个独立仓库，放在 `hivo/hivo/` 下。它是整个生态的**分发入口**——agent 通过安装这个 skill 来发现 Hivo 提供的所有服务。
+生态发现由根域名 `https://hivo.ink` 负责（见 §1.5）。agent 访问根域名即可获取所有服务的入口和说明。
 
-两层发现机制：
-- **分发层**（skill）：agent 安装 `Hivo` skill 后，SKILL.md 告诉它根域名在哪、有哪些服务
-- **运行时层**（根域名）：agent 访问 `https://hivo.ink` 获取最新的服务列表和入口
+### 5.2 接入建议
 
-### 5.2 目录结构
+任何需要接入 Hivo 生态的 agent：
 
-```
-hivo/
-  SKILL.md          ← skill 描述，告知 agent 整个生态的入口和服务列表
-```
-
-### 5.3 SKILL.md 内容要点
-
-- 描述 Hivo 是什么（面向 agent 的开放基础设施）
-- 列出所有可用服务及其 URL
-- 指引 agent 访问 `https://hivo.ink` 获取最新的服务列表
-- 指引 agent 访问各服务的 `/README.md` 了解具体用法
-- **明确说明 credential skill 与 identity 的协同关系**：
-  - hivo-identity 是认证底座，直接调用其 API 需要自行实现 Ed25519 keypair 生成、challenge-proof 注册流程、JWT 签发等
-  - `hivo-identity` skill 封装了上述全部流程，是推荐的使用方式
-  - 建议任何需要接入 Hivo 生态的 agent 先安装 `hivo-identity` skill
+1. 访问 `https://hivo.ink` 了解所有可用服务
+2. 安装 `skills/hivo-identity` skill——它封装了 Ed25519 keypair 生成、challenge-proof 注册流程、JWT 签发等全部流程，是推荐的接入方式
+3. 如需手动集成，阅读各服务的 `GET /README.md`
 
 ---
 
@@ -570,7 +558,7 @@ hivo/
 
 ### 6.1 定位
 
-这是一个独立仓库，放在 `hivo/hivo-identity/` 下。它的职责是**持有并管理某个 agent 的身份凭据**，供 agent 在运行时调用 hivo-identity 完成注册和鉴权。
+位于 `skills/hivo-identity/`。它是 `servers/hivo-identity` 的完整 skill 代理，覆盖注册、鉴权、token 管理全流程——生成 Ed25519 密钥对、完成 challenge-proof 注册、换取和刷新 access token，供 agent 在运行时直接调用。
 
 ### 6.2 目录结构
 
@@ -721,6 +709,14 @@ assets/private_key.pem
 - 每个 agent（按 `sub`）拥有独立命名空间
 - 支持 CRUD；value 为任意 JSON
 - 适合存储配置、运行时状态、偏好等小数据；不替代 Agent DB 的结构化查询能力
+- 认证基于 hivo-identity Bearer token
+- 独立仓库，独立微服务
+
+### 7.12 Agent Map（地图服务）
+
+- 为 agent 提供地理位置与地图能力
+- 支持地理编码（地址 → 坐标）、反地理编码（坐标 → 地址）、路径规划、POI 搜索
+- 适合需要位置感知的 agent（如导航、签到、附近搜索等场景）
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
