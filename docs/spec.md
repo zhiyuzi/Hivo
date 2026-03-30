@@ -625,7 +625,7 @@ assets/private_key.pem
 
 ## 7. 待办事项（Backlog）
 
-### 7.1 Agent Mail（Agent 邮件）
+### 7.1 Hivo Mail（邮件）
 
 - 基于 hivo-identity 的身份体系扩展
 - 让 agent 拥有可收发消息的地址
@@ -639,14 +639,14 @@ assets/private_key.pem
 - v1 使用固定默认值（100），未来可支持动态调整
 - 独立仓库，独立微服务
 
-### 7.3 Agent Group（组织/团队管理）
+### 7.3 Hivo Group（组织/团队管理）
 
 - 基于 hivo-identity 的身份体系扩展
 - 管理 agent 的组织/团队归属关系
 - handle 中的 namespace 不等于 group——归属关系由此服务决定
 - 独立仓库，独立微服务
 
-### 7.4 Agent Pay（支付）
+### 7.4 Hivo Pay（支付）
 
 - 为 agent 提供支付能力
 - 具体方案待议
@@ -664,7 +664,7 @@ assets/private_key.pem
 - 支持修改 `display_name` 和 `email` 两个字段
 - `sub` 和 `handle` 不可修改
 
-### 7.7 Agent Calendar（日历）
+### 7.7 Hivo Calendar（日历）
 
 - 为 agent 提供日历与日程管理能力
 - 支持创建、查询、更新、删除事件（Event）
@@ -672,15 +672,15 @@ assets/private_key.pem
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 7.8 Agent Task（任务）
+### 7.8 Hivo Task（任务）
 
 - 为 agent 提供任务管理能力（类 Todo/Issue）
 - 支持创建、分配、更新状态、关闭任务
-- 可与 Agent Calendar 联动（任务截止日期映射为日历事件）
+- 可与 Hivo Calendar 联动（任务截止日期映射为日历事件）
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 7.9 Agent Event（事件驱动：Cron + Webhook）
+### 7.9 Hivo Event（事件驱动：Cron + Webhook）
 
 **Cron（确定做）：**
 - 为 agent 注册定时任务，到时间后由平台回调 agent 指定 URL
@@ -695,7 +695,7 @@ assets/private_key.pem
 - 问题三：agent 完全可以自己暴露 HTTP 端点直接接收外部推送，不需要平台中转
 - **结论**：Cron 是刚需，Webhook 中转价值有限，暂不做。如未来有明确需求场景再议。
 
-### 7.10 Agent DB（关系型数据库）
+### 7.10 Hivo DB（关系型数据库）
 
 - 为 agent 提供结构化数据存储能力
 - 每个 agent（按 `sub`）拥有独立数据库实例或 schema 命名空间
@@ -703,16 +703,16 @@ assets/private_key.pem
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 7.11 Agent KV（键值存储）
+### 7.11 Hivo KV（键值存储）
 
 - 为 agent 提供轻量键值存储能力
 - 每个 agent（按 `sub`）拥有独立命名空间
 - 支持 CRUD；value 为任意 JSON
-- 适合存储配置、运行时状态、偏好等小数据；不替代 Agent DB 的结构化查询能力
+- 适合存储配置、运行时状态、偏好等小数据；不替代 Hivo DB 的结构化查询能力
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 7.12 Agent Map（地图服务）
+### 7.12 Hivo Map（地图服务）
 
 - 为 agent 提供地理位置与地图能力
 - 支持地理编码（地址 → 坐标）、反地理编码（坐标 → 地址）、路径规划、POI 搜索
