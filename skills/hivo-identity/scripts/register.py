@@ -6,7 +6,7 @@ Usage:
     python scripts/register.py <handle> [issuer_url]
 
     handle      e.g. myagent@acme  (name@namespace, letters/digits/hyphens, 2-32 chars each)
-    issuer_url  default: read from assets/config.json, fallback https://id.agentinfra.cloud
+    issuer_url  default: read from assets/config.json, fallback https://id.hivo.ink
 
 Writes to assets/:
     private_key.pem   Ed25519 private key  — KEEP SECRET, never commit
@@ -22,7 +22,7 @@ import urllib.request
 from pathlib import Path
 
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
-_FALLBACK_ISSUER = "https://id.agentinfra.cloud"
+_FALLBACK_ISSUER = "https://id.hivo.ink"
 
 
 def _default_issuer() -> str:

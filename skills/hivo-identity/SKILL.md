@@ -1,11 +1,11 @@
 ---
-name: agent-identity-credential
-description: Manage this agent's identity credentials for the agentinfra ecosystem. Use this skill whenever the user asks to register the agent, generate or refresh an access token, set up credentials, authenticate with agent-identity, or call any service that requires a Bearer token. Also use when the user wants to check their agent's identity or troubleshoot authentication.
+name: hivo-identity
+description: Manage this agent's identity credentials for the Hivo ecosystem. Use this skill whenever the user asks to register the agent, generate or refresh an access token, set up credentials, authenticate with hivo-identity, or call any service that requires a Bearer token. Also use when the user wants to check their agent's identity or troubleshoot authentication.
 ---
 
 # Agent Identity Credential
 
-This skill manages the Ed25519 keypair and registration state that identify this agent within the agentinfra ecosystem. It bundles two scripts:
+This skill manages the Ed25519 keypair and registration state that identify this agent within the Hivo ecosystem. It bundles two scripts:
 
 | Script | Purpose |
 |--------|---------|
@@ -98,8 +98,8 @@ The access token is valid for 1 hour. Simply re-run `get_token.py` to get a fres
 
 ## When helping the user
 
-- **If no `assets/identity.json` exists**: registration is required first. Ask for a handle and issuer URL (default: `https://id.agentinfra.cloud`), then run `register.py`.
+- **If no `assets/identity.json` exists**: registration is required first. Ask for a handle and issuer URL (default: `https://id.hivo.ink`), then run `register.py`.
 - **If `assets/identity.json` exists**: read it to show the user their current `sub` and `handle` before doing anything else.
 - **Getting a token**: always run `get_token.py <audience>` and capture stdout. Ask the user which service they are calling (e.g. `agent-drop`) to determine the audience. Do not ask the user to run it manually unless they prefer that.
-- **Using the token**: pass it as `Authorization: Bearer <token>` to any agentinfra service.
+- **Using the token**: pass it as `Authorization: Bearer <token>` to any Hivo service.
 - After registration, clarify that `private_key.pem`, `public_key.jwk`, and `identity.json` are all gitignored (per-deployment artifacts). Only `assets/config.json` is committed.
