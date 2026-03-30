@@ -4,14 +4,14 @@
 
 ### 1.1 仓库结构
 
-所有仓库统一放在 `agentinfra/` 根目录下，每个子目录是独立 git 仓库：
+所有仓库统一放在 `hivo/` 根目录下，每个子目录是独立 git 仓库：
 
 ```
-agentinfra/
-  agent-identity/             ← 独立仓库，身份服务
-  agent-drop/                 ← 独立仓库，文件存储服务
-  agentinfra/                 ← 独立仓库，生态发现 skill
-  agent-identity-credential/  ← 独立仓库，身份凭据 skill
+hivo/
+  hivo-identity/             ← 独立仓库，身份服务
+  hivo-drop/                 ← 独立仓库，文件存储服务
+  hivo/                 ← 独立仓库，生态发现 skill
+  hivo-identity/  ← 独立仓库，身份凭据 skill
   docs/                       ← 本文档所在位置
 ```
 
@@ -19,40 +19,40 @@ agentinfra/
 
 | 仓库 | 类型 | 职责 |
 |------|------|------|
-| `agent-identity` | 微服务 | 身份注册、token 签发、JWKS 公钥发布 |
-| `agent-drop` | 微服务 | 文件存储与公开分享（支持任意格式，文本/HTML/二进制均可） |
-| `agentinfra` | Skill | 生态入口，描述所有可用服务及其使用方式 |
-| `agent-identity-credential` | Skill | 持有并管理 agent 身份凭据，供 agent 运行时使用 |
+| `hivo-identity` | 微服务 | 身份注册、token 签发、JWKS 公钥发布 |
+| `hivo-drop` | 微服务 | 文件存储与公开分享（支持任意格式，文本/HTML/二进制均可） |
+| `Hivo` | Skill | 生态入口，描述所有可用服务及其使用方式 |
+| `hivo-identity` | Skill | 持有并管理 agent 身份凭据，供 agent 运行时使用 |
 
 ### 1.3 服务关系与耦合原则
 
 依赖关系：
 
 ```
-agent-identity          ← 底层，不依赖任何其他仓库
-agent-drop              ← 依赖 agent-identity（token 验证）
-agent-identity-credential ← 依赖 agent-identity（注册与换 token）
-agentinfra              ← 生态发现入口，列出所有服务
+hivo-identity          ← 底层，不依赖任何其他仓库
+hivo-drop              ← 依赖 hivo-identity（token 验证）
+hivo-identity ← 依赖 hivo-identity（注册与换 token）
+Hivo              ← 生态发现入口，列出所有服务
 ```
 
 **耦合原则（必须遵守）：**
 
 - 每个仓库只能显式引用它直接依赖的上游，**不得引用与自身无依赖关系的其他仓库**
-- 以 Skill 为例：`agent-identity-credential` 的职责是管理凭据，它依赖 agent-identity，所以可以引用 agent-identity 的 URL 和接口。但它与 agent-drop 没有直接依赖，因此 SKILL.md 里**不得出现 agent-drop 的名字或 URL**
+- 以 Skill 为例：`hivo-identity` 的职责是管理凭据，它依赖 hivo-identity，所以可以引用 hivo-identity 的 URL 和接口。但它与 hivo-drop 没有直接依赖，因此 SKILL.md 里**不得出现 hivo-drop 的名字或 URL**
 - `.md` 文件同样是代码，适用高内聚、低耦合原则：该依赖的写清楚，不该依赖的不要提
-- 生态发现（"有哪些服务"）是 `agentinfra` skill 的职责，不是每个具体 skill 的职责
+- 生态发现（"有哪些服务"）是 `Hivo` skill 的职责，不是每个具体 skill 的职责
 
 简记：**谁调用谁，谁才能提谁。**
 
 ### 1.4 技术栈
 
 - 微服务：FastAPI + SQLite3 + Pydantic
-- agent-drop 额外依赖 Cloudflare R2
-- agent-identity-credential：纯 Python 脚本，无框架依赖
+- hivo-drop 额外依赖 Cloudflare R2
+- hivo-identity：纯 Python 脚本，无框架依赖
 
 ### 1.5 根域名入口
 
-`https://agentinfra.cloud` 作为整个生态的运行时发现入口，返回 `Content-Type: text/markdown; charset=utf-8`：
+`https://hivo.ink` 作为整个生态的运行时发现入口，返回 `Content-Type: text/markdown; charset=utf-8`：
 
 ```markdown
 # AgentInfra
@@ -60,12 +60,12 @@ agentinfra              ← 生态发现入口，列出所有服务
 Open infrastructure for agents.
 
 ## Services
-- https://id.agentinfra.cloud — Agent Identity: registration & authentication
-- https://drop.agentinfra.cloud — Agent Drop: file storage & sharing
+- https://id.hivo.ink — Agent Identity: registration & authentication
+- https://drop.hivo.ink — Agent Drop: file storage & sharing
 
 ## Getting Started
-1. Install the `agent-identity-credential` skill — it handles keypair generation, registration, and token acquisition for you.
-2. If you prefer manual integration, read the identity service docs: GET https://id.agentinfra.cloud/README.md
+1. Install the `hivo-identity` skill — it handles keypair generation, registration, and token acquisition for you.
+2. If you prefer manual integration, read the identity service docs: GET https://id.hivo.ink/README.md
 3. Read each service's README: GET {service_url}/README.md
 ```
 
@@ -91,7 +91,7 @@ Open infrastructure for agents.
 
 ---
 
-## 2. Service A：agent-identity
+## 2. Service A：hivo-identity
 
 ### 2.1 定位
 
@@ -113,7 +113,7 @@ Open infrastructure for agents.
 - `name` 和 `namespace` 各自：字母（大小写均可）、数字、连字符，2-32 字符
 - 不允许特殊符号（`.`、`_`、空格等）
 - `@` 后的 namespace 只是命名空间标识符，**不关联任何组织实体**
-- `a1@foo` 和 `a2@foo` 可能属于同一组织，也可能不是——agent-identity 不关心
+- `a1@foo` 和 `a2@foo` 可能属于同一组织，也可能不是——hivo-identity 不关心
 - 组织/团队的归属关系由其他微服务（如 agent-group）决定
 - handle 全局唯一
 
@@ -201,7 +201,7 @@ CREATE TABLE refresh_tokens (
 
 ```json
 {
-  "iss": "https://id.agentinfra.cloud",
+  "iss": "https://id.hivo.ink",
   "sub": "agt_01JV8Y...",
   "aud": "<resource_service>",
   "handle": "writer@acme",
@@ -210,7 +210,7 @@ CREATE TABLE refresh_tokens (
 }
 ```
 
-`aud` 由调用方在 `POST /token` 时传入，标识 token 的目标服务。agent-identity 不预设任何默认值——它只签名，不知道下游有哪些服务。
+`aud` 由调用方在 `POST /token` 时传入，标识 token 的目标服务。hivo-identity 不预设任何默认值——它只签名，不知道下游有哪些服务。
 
 - 标准 claim：`iss`、`sub`、`aud`、`exp`、`iat`
 - 自定义 claim：`handle`
@@ -246,7 +246,7 @@ CREATE TABLE refresh_tokens (
 # Agent Identity Service
 
 Role: issuer / authentication service
-Issuer: https://id.agentinfra.cloud
+Issuer: https://id.hivo.ink
 Docs: GET /README.md
 
 ## Core Routes
@@ -306,11 +306,11 @@ Docs: GET /README.md
 
 ```json
 {
-  "issuer": "https://id.agentinfra.cloud",
-  "token_endpoint": "https://id.agentinfra.cloud/token",
-  "jwks_uri": "https://id.agentinfra.cloud/jwks.json",
-  "userinfo_endpoint": "https://id.agentinfra.cloud/me",
-  "registration_endpoint": "https://id.agentinfra.cloud/register",
+  "issuer": "https://id.hivo.ink",
+  "token_endpoint": "https://id.hivo.ink/token",
+  "jwks_uri": "https://id.hivo.ink/jwks.json",
+  "userinfo_endpoint": "https://id.hivo.ink/me",
+  "registration_endpoint": "https://id.hivo.ink/register",
   "token_endpoint_auth_methods_supported": ["private_key_jwt"],
   "token_endpoint_auth_signing_alg_values_supported": ["EdDSA"],
   "subject_types_supported": ["public"],
@@ -322,7 +322,7 @@ v1 做 OIDC-like 最小子集，不追求完整合规。
 
 ---
 
-## 3. Service B：agent-drop
+## 3. Service B：hivo-drop
 
 ### 3.1 定位
 
@@ -405,8 +405,8 @@ CREATE TABLE files (
 
 HTML 公开展示是核心功能。安全约束：
 
-1. **同域名隔离**：公开文件通过 `drop.agentinfra.cloud/p/{share_id}` 访问，与认证 API 共用域名但路径隔离
-2. **无 cookie**：agent-drop 使用 Bearer token 认证，不设置任何 cookie，公开路径无登录态可窃取
+1. **同域名隔离**：公开文件通过 `drop.hivo.ink/p/{share_id}` 访问，与认证 API 共用域名但路径隔离
+2. **无 cookie**：hivo-drop 使用 Bearer token 认证，不设置任何 cookie，公开路径无登录态可窃取
 3. **严格 CSP**：公开 HTML 响应头添加：
    ```
    Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src https: data:; font-src https:;
@@ -470,7 +470,7 @@ Docs: GET /README.md
 
 ### 3.10 Token 验证流程
 
-agent-drop 收到请求后：
+hivo-drop 收到请求后：
 
 1. 提取 `Authorization: Bearer <token>`
 2. 解析 JWT，读取 `iss`
@@ -483,7 +483,7 @@ agent-drop 收到请求后：
 
 配置项：
 ```
-TRUSTED_ISSUERS=https://id.agentinfra.cloud
+TRUSTED_ISSUERS=https://id.hivo.ink
 ```
 
 ### 3.11 上传限制
@@ -536,49 +536,49 @@ aud        — 这个 token 给谁用（资源服务校验）
 
 ---
 
-## 5. Skill：agentinfra
+## 5. Skill：Hivo
 
 ### 5.1 定位
 
-这是一个独立仓库，放在 `agentinfra/agentinfra/` 下。它是整个生态的**分发入口**——agent 通过安装这个 skill 来发现 agentinfra 提供的所有服务。
+这是一个独立仓库，放在 `hivo/hivo/` 下。它是整个生态的**分发入口**——agent 通过安装这个 skill 来发现 Hivo 提供的所有服务。
 
 两层发现机制：
-- **分发层**（skill）：agent 安装 `agentinfra` skill 后，SKILL.md 告诉它根域名在哪、有哪些服务
-- **运行时层**（根域名）：agent 访问 `https://agentinfra.cloud` 获取最新的服务列表和入口
+- **分发层**（skill）：agent 安装 `Hivo` skill 后，SKILL.md 告诉它根域名在哪、有哪些服务
+- **运行时层**（根域名）：agent 访问 `https://hivo.ink` 获取最新的服务列表和入口
 
 ### 5.2 目录结构
 
 ```
-agentinfra/
+hivo/
   SKILL.md          ← skill 描述，告知 agent 整个生态的入口和服务列表
 ```
 
 ### 5.3 SKILL.md 内容要点
 
-- 描述 agentinfra 是什么（面向 agent 的开放基础设施）
+- 描述 Hivo 是什么（面向 agent 的开放基础设施）
 - 列出所有可用服务及其 URL
-- 指引 agent 访问 `https://agentinfra.cloud` 获取最新的服务列表
+- 指引 agent 访问 `https://hivo.ink` 获取最新的服务列表
 - 指引 agent 访问各服务的 `/README.md` 了解具体用法
 - **明确说明 credential skill 与 identity 的协同关系**：
-  - agent-identity 是认证底座，直接调用其 API 需要自行实现 Ed25519 keypair 生成、challenge-proof 注册流程、JWT 签发等
-  - `agent-identity-credential` skill 封装了上述全部流程，是推荐的使用方式
-  - 建议任何需要接入 agentinfra 生态的 agent 先安装 `agent-identity-credential` skill
+  - hivo-identity 是认证底座，直接调用其 API 需要自行实现 Ed25519 keypair 生成、challenge-proof 注册流程、JWT 签发等
+  - `hivo-identity` skill 封装了上述全部流程，是推荐的使用方式
+  - 建议任何需要接入 Hivo 生态的 agent 先安装 `hivo-identity` skill
 
 ---
 
-## 6. Skill：agent-identity-credential
+## 6. Skill：hivo-identity
 
 ### 6.1 定位
 
-这是一个独立仓库，放在 `agentinfra/agent-identity-credential/` 下。它的职责是**持有并管理某个 agent 的身份凭据**，供 agent 在运行时调用 agent-identity 完成注册和鉴权。
+这是一个独立仓库，放在 `hivo/hivo-identity/` 下。它的职责是**持有并管理某个 agent 的身份凭据**，供 agent 在运行时调用 hivo-identity 完成注册和鉴权。
 
 ### 6.2 目录结构
 
 ```
-agent-identity-credential/
+hivo-identity/
   SKILL.md          ← skill 描述与使用说明
   scripts/
-    register.py     ← 生成 Ed25519 密钥对，向 agent-identity 完成注册，将结果写入 assets/
+    register.py     ← 生成 Ed25519 密钥对，向 hivo-identity 完成注册，将结果写入 assets/
     get_token.py    ← 读取私钥，生成 assertion，换取 access_token，输出供 agent 使用
   assets/
     .gitignore      ← 只含一行：private_key.pem
@@ -603,7 +603,7 @@ ASSETS_DIR = Path(__file__).parent.parent / "assets"
 
 ### 6.4 scripts/get_token.py 行为
 
-调用方式：`python scripts/get_token.py <audience>`，`audience` 为必填参数，标识 token 的目标服务（如 `agent-drop`）。
+调用方式：`python scripts/get_token.py <audience>`，`audience` 为必填参数，标识 token 的目标服务（如 `hivo-drop`）。
 
 1. 从命令行参数读取 `audience`，缺失则报错退出
 2. 读取 `assets/identity.json`，获取 `sub` 和 `iss`
@@ -639,21 +639,21 @@ assets/private_key.pem
 
 ### 7.1 Agent Mail（Agent 邮件）
 
-- 基于 agent-identity 的身份体系扩展
+- 基于 hivo-identity 的身份体系扩展
 - 让 agent 拥有可收发消息的地址
-- 邮件服务是 agent-identity **上层的产品能力**，不是底座
+- 邮件服务是 hivo-identity **上层的产品能力**，不是底座
 - 独立仓库，独立微服务
 
-### 7.2 Quota（agent-drop 配额）
+### 7.2 Quota（hivo-drop 配额）
 
-- 控制每个 agent 在 agent-drop 中可上传的文件数量
+- 控制每个 agent 在 hivo-drop 中可上传的文件数量
 - 基于 `sub`（per-agent）做配额管理
 - v1 使用固定默认值（100），未来可支持动态调整
 - 独立仓库，独立微服务
 
 ### 7.3 Agent Group（组织/团队管理）
 
-- 基于 agent-identity 的身份体系扩展
+- 基于 hivo-identity 的身份体系扩展
 - 管理 agent 的组织/团队归属关系
 - handle 中的 namespace 不等于 group——归属关系由此服务决定
 - 独立仓库，独立微服务
@@ -664,13 +664,13 @@ assets/private_key.pem
 - 具体方案待议
 - 独立仓库，独立微服务
 
-### 7.5 agent-identity：速率限制
+### 7.5 hivo-identity：速率限制
 
 - 对高频接口（`/register`、`/token`）实现请求速率限制
 - 超限返回 `429 rate_limited`
 - v1 未实现，后续按实际需求确定限流策略
 
-### 7.6 agent-identity：Profile 修改接口
+### 7.6 hivo-identity：Profile 修改接口
 
 - 新增 `PATCH /me`，需要 Bearer 认证
 - 支持修改 `display_name` 和 `email` 两个字段
@@ -681,7 +681,7 @@ assets/private_key.pem
 - 为 agent 提供日历与日程管理能力
 - 支持创建、查询、更新、删除事件（Event）
 - 支持按时间范围查询；支持多 agent 共享/订阅日历
-- 认证基于 agent-identity Bearer token
+- 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
 ### 7.8 Agent Task（任务）
@@ -689,7 +689,7 @@ assets/private_key.pem
 - 为 agent 提供任务管理能力（类 Todo/Issue）
 - 支持创建、分配、更新状态、关闭任务
 - 可与 Agent Calendar 联动（任务截止日期映射为日历事件）
-- 认证基于 agent-identity Bearer token
+- 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
 ### 7.9 Agent Event（事件驱动：Cron + Webhook）
@@ -697,7 +697,7 @@ assets/private_key.pem
 **Cron（确定做）：**
 - 为 agent 注册定时任务，到时间后由平台回调 agent 指定 URL
 - 平台主动触发，逻辑清晰，实现成本低
-- 认证基于 agent-identity Bearer token；回调时附带签名验证
+- 认证基于 hivo-identity Bearer token；回调时附带签名验证
 - 独立仓库，独立微服务
 
 **Webhook（待议，倾向不做）：**
@@ -712,7 +712,7 @@ assets/private_key.pem
 - 为 agent 提供结构化数据存储能力
 - 每个 agent（按 `sub`）拥有独立数据库实例或 schema 命名空间
 - 支持 SQL 查询（SELECT/JOIN/WHERE/聚合等）；适合任务、日历、邮件等有查询需求的业务数据
-- 认证基于 agent-identity Bearer token
+- 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
 ### 7.11 Agent KV（键值存储）
@@ -721,7 +721,7 @@ assets/private_key.pem
 - 每个 agent（按 `sub`）拥有独立命名空间
 - 支持 CRUD；value 为任意 JSON
 - 适合存储配置、运行时状态、偏好等小数据；不替代 Agent DB 的结构化查询能力
-- 认证基于 agent-identity Bearer token
+- 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
 ---
@@ -730,34 +730,34 @@ assets/private_key.pem
 
 ### 8.1 公有云部署
 
-- 根域名入口：`https://agentinfra.cloud`
-- agent-identity：`https://id.agentinfra.cloud`
-- agent-drop：`https://drop.agentinfra.cloud`（API + 公开访问均在此域名）
+- 根域名入口：`https://hivo.ink`
+- hivo-identity：`https://id.hivo.ink`
+- hivo-drop：`https://drop.hivo.ink`（API + 公开访问均在此域名）
 
 ### 8.2 私有部署
 
 企业克隆仓库后自行部署：
 - 修改 `iss` 为自己的域名
-- agent-drop 配置 `TRUSTED_ISSUERS` 指向自己的 agent-identity 实例
+- hivo-drop 配置 `TRUSTED_ISSUERS` 指向自己的 hivo-identity 实例
 - 数据完全隔离，`iss` 不同即为不同信任域
 
 ### 8.3 关键配置项
 
-**agent-identity：**
+**hivo-identity：**
 ```
-ISSUER_URL=https://id.agentinfra.cloud
+ISSUER_URL=https://id.hivo.ink
 DATABASE_PATH=./data/identity.db
 SIGNING_KEY_ALG=EdDSA
 ```
 
-**agent-drop：**
+**hivo-drop：**
 ```
-TRUSTED_ISSUERS=https://id.agentinfra.cloud
+TRUSTED_ISSUERS=https://id.hivo.ink
 DATABASE_PATH=./data/drop.db
 R2_ENDPOINT=https://xxx.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=xxx
 R2_SECRET_ACCESS_KEY=xxx
-R2_BUCKET_NAME=agent-drop
+R2_BUCKET_NAME=hivo-drop
 ```
 
 ### 8.4 Python 工具链规范
