@@ -7,10 +7,13 @@ Usage:
 
     audience  the service this token is intended for (e.g. the target service name)
 
-Reads assets/identity.json and assets/private_key.pem (written by register.py),
-then exchanges a signed JWT assertion for an access token and prints it to stdout.
-
-The token is valid for 1 hour.  Re-run this script to get a fresh one.
+Token caching:
+  Access tokens (valid 1 hour) and refresh tokens (valid 30 days) are cached in
+  assets/token_cache.json.  On each run the script tries, in order:
+    1. Return a cached access token that is still valid (with a 60s buffer).
+    2. Use the cached refresh token to get a new pair from POST /token/refresh.
+    3. Fall back to the full private_key_jwt assertion flow via POST /token.
+  Steps 2 and 3 update the cache automatically.
 
 Example:
     TOKEN=$(python scripts/get_token.py <audience>)
@@ -26,10 +29,23 @@ import urllib.request
 from pathlib import Path
 
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
+CACHE_FILE = ASSETS_DIR / "token_cache.json"
 
 
 def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def _jwt_exp(token: str) -> int:
+    """Return the exp claim from a JWT payload, or 0 on any error."""
+    try:
+        part = token.split(".")[1]
+        padding = 4 - len(part) % 4
+        if padding != 4:
+            part += "=" * padding
+        return json.loads(base64.urlsafe_b64decode(part)).get("exp", 0)
+    except Exception:
+        return 0
 
 
 def _load_identity() -> dict:
@@ -58,8 +74,21 @@ def _load_private_key():
     return load_pem_private_key(path.read_bytes(), password=None)
 
 
+def _load_cache() -> dict:
+    if CACHE_FILE.exists():
+        try:
+            return json.loads(CACHE_FILE.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+def _save_cache(cache: dict) -> None:
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    CACHE_FILE.write_text(json.dumps(cache, indent=2))
+
+
 def _build_assertion(sub: str, aud: str, private_key) -> str:
-    """Build a signed JWT assertion for the token endpoint."""
     now = int(time.time())
     header = _b64url(json.dumps({"alg": "EdDSA", "typ": "JWT"}, separators=(",", ":")).encode())
     payload = _b64url(
@@ -94,21 +123,58 @@ def _post(url: str, data: dict) -> dict:
         sys.exit(1)
 
 
+def _try_refresh(iss: str, audience: str, cache: dict) -> tuple[str | None, str | None]:
+    """Attempt to refresh via cached refresh token.
+    Returns (access_token, refresh_token) on success, (None, None) on failure."""
+    refresh_token = cache.get(audience, {}).get("refresh_token")
+    if not refresh_token:
+        return None, None
+    try:
+        body = json.dumps({"refresh_token": refresh_token}).encode()
+        req = urllib.request.Request(
+            f"{iss}/token/refresh",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read())
+        return data.get("access_token"), data.get("refresh_token")
+    except Exception:
+        # Refresh token expired or invalid — fall through to assertion flow
+        return None, None
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         print("Usage: python scripts/get_token.py <audience>", file=sys.stderr)
         sys.exit(1)
     audience = sys.argv[1]
 
+    cache = _load_cache()
+    now = int(time.time())
+
+    # 1. Cached access token still valid (60s buffer)
+    cached_access = cache.get(audience, {}).get("access_token")
+    if cached_access and _jwt_exp(cached_access) > now + 60:
+        print(cached_access)
+        return
+
     identity = _load_identity()
     sub: str = identity["sub"]
     iss: str = identity["iss"]
 
+    # 2. Refresh token
+    new_access, new_refresh = _try_refresh(iss, audience, cache)
+    if new_access:
+        cache[audience] = {"access_token": new_access, "refresh_token": new_refresh}
+        _save_cache(cache)
+        print(new_access)
+        return
+
+    # 3. Full assertion flow
     private_key = _load_private_key()
-
-    aud = f"{iss}/token"
-    assertion = _build_assertion(sub, aud, private_key)
-
+    assertion = _build_assertion(sub, f"{iss}/token", private_key)
     resp = _post(
         f"{iss}/token",
         {
@@ -118,7 +184,13 @@ def main() -> None:
         },
     )
 
-    print(resp["access_token"])
+    access_token = resp["access_token"]
+    cache[audience] = {
+        "access_token": access_token,
+        "refresh_token": resp.get("refresh_token"),
+    }
+    _save_cache(cache)
+    print(access_token)
 
 
 if __name__ == "__main__":
