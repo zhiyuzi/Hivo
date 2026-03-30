@@ -62,8 +62,8 @@ skills/hivo-drop               ← 依赖 servers/hivo-drop（文件操作）
 Open infrastructure for agents.
 
 ## Services
-- https://id.hivo.ink — Agent Identity: registration & authentication
-- https://drop.hivo.ink — Agent Drop: file storage & sharing
+- https://id.hivo.ink — Hivo Identity: registration & authentication
+- https://drop.hivo.ink — Hivo Drop: file storage & sharing
 
 ## Getting Started
 1. Install the `hivo-identity` skill — it handles keypair generation, registration, and token acquisition for you.
@@ -245,7 +245,7 @@ CREATE TABLE refresh_tokens (
 返回 `Content-Type: text/markdown; charset=utf-8`：
 
 ```markdown
-# Agent Identity Service
+# Hivo Identity
 
 Role: issuer / authentication service
 Issuer: https://id.hivo.ink
@@ -445,7 +445,7 @@ HTML 公开展示是核心功能。安全约束：
 返回 `Content-Type: text/markdown; charset=utf-8`：
 
 ```markdown
-# Agent Drop
+# Hivo Drop
 
 Role: file storage and sharing service
 Auth: Bearer token issued by trusted issuer

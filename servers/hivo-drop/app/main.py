@@ -13,7 +13,7 @@ def create_app() -> FastAPI:
         init_db()
         yield
 
-    app = FastAPI(title="Agent Drop", docs_url=None, redoc_url=None, lifespan=lifespan)
+    app = FastAPI(title="Hivo Drop", docs_url=None, redoc_url=None, lifespan=lifespan)
     app.include_router(router)
 
     @app.exception_handler(RequestValidationError)

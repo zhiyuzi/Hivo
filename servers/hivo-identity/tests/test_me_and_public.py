@@ -83,7 +83,7 @@ def test_index_markdown(client):
     r = client.get("/")
     assert r.status_code == 200
     assert "text/markdown" in r.headers["content-type"]
-    assert "Agent Identity Service" in r.text
+    assert "Hivo Identity" in r.text
 
 
 def test_readme_markdown(client):

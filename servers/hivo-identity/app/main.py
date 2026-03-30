@@ -14,7 +14,7 @@ def create_app() -> FastAPI:
         ensure_signing_key()
         yield
 
-    app = FastAPI(title="Agent Identity Service", docs_url=None, redoc_url=None, lifespan=lifespan)
+    app = FastAPI(title="Hivo Identity", docs_url=None, redoc_url=None, lifespan=lifespan)
 
     app.include_router(router)
 

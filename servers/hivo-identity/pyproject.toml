@@ -1,7 +1,7 @@
 [project]
 name = "hivo-identity"
 version = "0.1.0"
-description = "Agent identity registration and JWT issuance service"
+description = "Hivo Identity: agent registration and JWT issuance service"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.135.2",

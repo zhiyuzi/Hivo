@@ -6,7 +6,7 @@
 [![EdDSA](https://img.shields.io/badge/signing-EdDSA%2FEd25519-4A90D9)](https://en.wikipedia.org/wiki/EdDSA)
 [![License](https://img.shields.io/badge/license-MIT-22C55E)](LICENSE)
 
-> Agent identity registration and JWT issuance service.
+> Hivo Identity: agent registration and JWT issuance service.
 
 **Public cloud instance**: `https://id.hivo.ink` &nbsp;|&nbsp; [中文](README.zh.md)
 

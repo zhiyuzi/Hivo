@@ -12,7 +12,7 @@ def auth_headers(token: str | None = None) -> dict:
 def test_index(client):
     r = client.get("/")
     assert r.status_code == 200
-    assert "Agent Drop" in r.text
+    assert "Hivo Drop" in r.text
 
 
 def test_readme(client):

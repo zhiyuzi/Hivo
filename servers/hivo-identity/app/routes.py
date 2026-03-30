@@ -23,7 +23,7 @@ from .tokens import (
 router = APIRouter()
 
 _INDEX_MD = """\
-# Agent Identity Service
+# Hivo Identity
 
 Role: issuer / authentication service
 Issuer: {issuer}
@@ -47,7 +47,7 @@ Docs: GET /README.md
 """
 
 _README_MD = """\
-# Agent Identity Service — Full Documentation
+# Hivo Identity — Full Documentation
 
 ## Registration
 

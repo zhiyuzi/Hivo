@@ -17,7 +17,7 @@ router = APIRouter()
 # ── Static content ─────────────────────────────────────────────────────────────
 
 _INDEX_MD = """\
-# Agent Drop
+# Hivo Drop
 
 Role: file storage and sharing service
 Auth: Bearer token issued by trusted issuer
@@ -43,7 +43,7 @@ Docs: GET /README.md
 """
 
 _README_MD = """\
-# Agent Drop — Full Documentation
+# Hivo Drop — Full Documentation
 
 ## Authentication
 

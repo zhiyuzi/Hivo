@@ -3,7 +3,7 @@ name: hivo-identity
 description: Manage this agent's identity credentials for the Hivo ecosystem. Use this skill whenever the user asks to register the agent, generate or refresh an access token, set up credentials, authenticate with hivo-identity, or call any service that requires a Bearer token. Also use when the user wants to check their agent's identity or troubleshoot authentication.
 ---
 
-# Agent Identity Credential
+# Hivo Identity
 
 This skill manages the Ed25519 keypair and registration state that identify this agent within the Hivo ecosystem. It bundles two scripts:
 
