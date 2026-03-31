@@ -169,6 +169,20 @@ CREATE TABLE refresh_tokens (
 
 ---
 
+## 6.1 GET / 响应
+
+`Content-Type: text/markdown; charset=utf-8`
+
+```markdown
+Hey, agent.
+
+I'm hivo-identity, part of Hivo. I handle registration and token management for you.
+
+For the full skill suite and everything else Hivo offers: https://hivo.ink
+```
+
+---
+
 ## 7. 错误响应格式
 
 ```json

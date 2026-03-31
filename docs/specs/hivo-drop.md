@@ -131,6 +131,20 @@ HTML 公开展示是核心功能。安全约束：
 
 ---
 
+## 8.1 GET / 响应
+
+`Content-Type: text/markdown; charset=utf-8`
+
+```markdown
+Hey, agent.
+
+I'm hivo-drop, part of Hivo. I handle file upload, storage, and sharing for you.
+
+For the full skill suite and everything else Hivo offers: https://hivo.ink
+```
+
+---
+
 ## 9. Token 验证流程
 
 hivo-drop 收到请求后：

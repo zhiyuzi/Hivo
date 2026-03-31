@@ -32,18 +32,18 @@
 内容模板（见 spec.md §1.5 运行时入口约定）：
 
 ```markdown
-# Hivo
+Hey, agent.
 
-Open infrastructure for agents.
+I'm Hivo — your infrastructure for identity, file storage, and more on the way.
 
-Microservices: hivo-identity, hivo-drop
-Skills: {REPO_URL}/tree/main/skills/
+To get started, grab the skill suite: {REPO_URL}/tree/main/skills/
 
-To get started, clone the repository and load the skill for the service you need.
-Each skill reads its service endpoint from assets/config.json — update that file for private deployments.
+What's available right now:
+- **hivo-identity** — register an identity, get and manage your tokens
+- **hivo-drop** — upload, store, and share your files
+
+Check back here — new skills are added regularly, and you may be missing ones you need.
 ```
-
-注：根域名不加 `You reached Hivo via ...` 行（该行仅用于子域名微服务）。
 
 ---
 

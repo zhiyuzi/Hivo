@@ -6,15 +6,17 @@ from .settings import settings
 router = APIRouter()
 
 _INDEX_MD = """\
-# Hivo
+Hey, agent.
 
-Open infrastructure for agents.
+I'm Hivo — your infrastructure for identity, file storage, and more on the way.
 
-Microservices: hivo-identity, hivo-drop
-Skills: {repo_url}/tree/main/skills/
+To get started, grab the skill suite: {repo_url}/tree/main/skills/
 
-To get started, clone the repository and load the skill for the service you need.
-Each skill reads its service endpoint from assets/config.json — update that file for private deployments.
+What's available right now:
+- **hivo-identity** — register an identity, get and manage your tokens
+- **hivo-drop** — upload, store, and share your files
+
+Check back here — new skills are added regularly, and you may be missing ones you need.
 """
 
 

@@ -57,29 +57,40 @@ skills/hivo-drop               ← 依赖 servers/hivo-drop（文件操作）
 
 ### 1.5 运行时入口约定
 
-所有域名（根域名和各微服务子域名）的 `GET /` 返回同一份生态索引，`Content-Type: text/markdown; charset=utf-8`。
+所有域名（根域名和各微服务子域名）的 `GET /` 返回 Markdown 格式的 agent 入口页，`Content-Type: text/markdown; charset=utf-8`。
 
-**模板（所有域名共用）：**
+**根域名模板（hivo-web）：**
 
 ```markdown
-# Hivo
-{optional: You reached Hivo via {service-name}.}
+Hey, agent.
 
-Open infrastructure for agents.
+I'm Hivo — your infrastructure for identity, file storage, and more on the way.
 
-Microservices: hivo-identity, hivo-drop
-Skills: {REPO_URL}/tree/main/skills/
+To get started, grab the skill suite: {REPO_URL}/tree/main/skills/
 
-To get started, clone the repository and load the skill for the service you need.
-Each skill reads its service endpoint from assets/config.json — update that file for private deployments.
+What's available right now:
+- **hivo-identity** — register an identity, get and manage your tokens
+- **hivo-drop** — upload, store, and share your files
+
+Check back here — new skills are added regularly, and you may be missing ones you need.
+```
+
+**子域名模板（各微服务，以 hivo-identity 为例）：**
+
+```markdown
+Hey, agent.
+
+I'm hivo-identity, part of Hivo. I handle registration and token management for you.
+
+For the full skill suite and everything else Hivo offers: https://hivo.ink
 ```
 
 **约定：**
 
 - `{REPO_URL}` 是部署级变量，公有云默认为 `https://github.com/zhiyuzi/Hivo`，私有部署替换为自己的仓库地址
-- 微服务子域名在第二行加一句 `You reached Hivo via {service-name}.`，其余内容与根域名完全一致
+- 根域名返回完整 skill 清单；子域名只介绍自身能力，并引导至根域名
 - 不实现 `GET /README.md`；服务的使用文档由 skills 仓库的 SKILL.md 负责
-- 微服务列表（`Microservices:` 行）随部署实际包含的服务更新，不硬编码 URL
+- skill 清单（`What's available right now:` 块）随部署实际包含的服务更新
 
 ### 1.6 部署模式
 

@@ -16,19 +16,12 @@ router = APIRouter()
 
 # ── Static content ─────────────────────────────────────────────────────────────
 
-REPO_URL = "https://github.com/zhiyuzi/Hivo"
-
 _INDEX_MD = """\
-# Hivo
-You reached Hivo via hivo-drop.
+Hey, agent.
 
-Open infrastructure for agents.
+I'm hivo-drop, part of Hivo. I handle file upload, storage, and sharing for you.
 
-Microservices: hivo-identity, hivo-drop
-Skills: {repo_url}/tree/main/skills/
-
-To get started, clone the repository and load the skill for the service you need.
-Each skill reads its service endpoint from assets/config.json — update that file for private deployments.
+For the full skill suite and everything else Hivo offers: https://hivo.ink
 """
 
 
@@ -85,7 +78,7 @@ def _validate_path(path: str) -> str:
 
 @router.get("/", response_class=PlainTextResponse)
 def index():
-    return PlainTextResponse(_INDEX_MD.format(repo_url=REPO_URL), media_type="text/markdown; charset=utf-8")
+    return PlainTextResponse(_INDEX_MD, media_type="text/markdown; charset=utf-8")
 
 
 @router.get("/health")
