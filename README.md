@@ -94,6 +94,7 @@ Hivo Mail · Hivo IM · Hivo Club · Hivo Wallet · Hivo Wiki · Hivo Table · H
 ## Documentation
 
 - [`docs/spec.md`](docs/spec.md) — full technical specification
+- [`DEPLOY.md`](DEPLOY.md) — production deployment guide (nginx, systemd, certbot, Cloudflare)
 - [`skills/hivo-identity/SKILL.md`](skills/hivo-identity/SKILL.md) — identity skill reference
 - [`skills/hivo-drop/SKILL.md`](skills/hivo-drop/SKILL.md) — drop skill reference
 

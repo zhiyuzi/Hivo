@@ -1,0 +1,191 @@
+# Deployment Guide
+
+## Infrastructure
+
+- **Server**: AWS EC2, Ubuntu, user `ubuntu`
+- **Deploy path**: `/opt/hivo`
+- **DNS / CDN**: Cloudflare (proxied). SSL mode must be set to **Full** to avoid redirect loops.
+- **HTTPS**: certbot (Let's Encrypt), auto-renews via `certbot.timer` (twice daily).
+
+## Service Ports
+
+| Service | Port |
+|---------|------|
+| hivo-web | 7999 |
+| hivo-identity | 8001 |
+| hivo-drop | 8002 |
+
+## First-Time Deployment
+
+### 1. Install dependencies
+
+```bash
+sudo apt update && sudo apt install -y git nginx certbot python3-certbot-nginx
+curl -Ls https://astral.sh/uv/install.sh | sh
+source $HOME/.cargo/env
+```
+
+### 2. Clone repo
+
+```bash
+sudo mkdir -p /opt/hivo
+sudo chown ubuntu:ubuntu /opt/hivo
+git clone https://github.com/zhiyuzi/Hivo.git /opt/hivo
+```
+
+### 3. Install Python dependencies
+
+```bash
+cd /opt/hivo/servers/hivo-identity && uv sync
+cd /opt/hivo/servers/hivo-drop      && uv sync
+cd /opt/hivo/servers/hivo-web       && uv sync
+```
+
+### 4. Create data directories
+
+```bash
+mkdir -p /opt/hivo/servers/hivo-identity/data
+mkdir -p /opt/hivo/servers/hivo-drop/data
+```
+
+### 5. Create .env files
+
+```bash
+cp /opt/hivo/servers/hivo-identity/.env.example /opt/hivo/servers/hivo-identity/.env
+cp /opt/hivo/servers/hivo-drop/.env.example      /opt/hivo/servers/hivo-drop/.env
+cp /opt/hivo/servers/hivo-web/.env.example       /opt/hivo/servers/hivo-web/.env
+```
+
+Then fill in the actual values — at minimum, hivo-drop needs the R2 credentials.
+
+### 6. Create systemd services
+
+**`/etc/systemd/system/hivo-identity.service`**:
+```ini
+[Unit]
+Description=hivo-identity
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/hivo/servers/hivo-identity
+ExecStart=/opt/hivo/servers/hivo-identity/.venv/bin/gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 2 --bind 127.0.0.1:8001
+Restart=always
+User=ubuntu
+EnvironmentFile=/opt/hivo/servers/hivo-identity/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**`/etc/systemd/system/hivo-drop.service`**:
+```ini
+[Unit]
+Description=hivo-drop
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/hivo/servers/hivo-drop
+ExecStart=/opt/hivo/servers/hivo-drop/.venv/bin/gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 2 --bind 127.0.0.1:8002
+Restart=always
+User=ubuntu
+EnvironmentFile=/opt/hivo/servers/hivo-drop/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**`/etc/systemd/system/hivo-web.service`**:
+```ini
+[Unit]
+Description=hivo-web
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/hivo/servers/hivo-web
+ExecStart=/opt/hivo/servers/hivo-web/.venv/bin/gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 2 --bind 127.0.0.1:7999
+Restart=always
+User=ubuntu
+EnvironmentFile=/opt/hivo/servers/hivo-web/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now hivo-identity hivo-drop hivo-web
+```
+
+### 7. Configure nginx
+
+**`/etc/nginx/sites-available/hivo`**:
+```nginx
+server {
+    listen 80;
+    server_name hivo.ink;
+    location / {
+        proxy_pass http://127.0.0.1:7999;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+server {
+    listen 80;
+    server_name id.hivo.ink;
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+server {
+    listen 80;
+    server_name drop.hivo.ink;
+    location / {
+        proxy_pass http://127.0.0.1:8002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/hivo /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### 8. Issue SSL certificates
+
+```bash
+sudo certbot --nginx -d hivo.ink -d id.hivo.ink -d drop.hivo.ink
+```
+
+### 9. Verify
+
+```bash
+curl https://hivo.ink/health
+curl https://id.hivo.ink/health
+curl https://drop.hivo.ink/health
+```
+
+## Updating (Pull & Restart)
+
+```bash
+cd /opt/hivo && git pull
+
+# Run only for services with changed dependencies
+cd servers/hivo-identity && uv sync
+cd servers/hivo-drop      && uv sync
+cd servers/hivo-web       && uv sync
+
+sudo systemctl restart hivo-identity hivo-drop hivo-web
+```
+
+## Notes
+
+- `.env` files are gitignored — must be created manually on the server.
+- Cloudflare SSL mode must be **Full** (not Flexible), otherwise nginx's HTTP→HTTPS redirect causes an infinite loop.
+- certbot auto-renewal is managed by `certbot.timer` — no manual action needed.

@@ -94,6 +94,7 @@ Hivo Mail · Hivo IM · Hivo Club · Hivo Wallet · Hivo Wiki · Hivo Table · H
 ## 文档
 
 - [`docs/spec.md`](docs/spec.md) — 完整技术规格
+- [`DEPLOY.md`](DEPLOY.md) — 生产部署指南（nginx、systemd、certbot、Cloudflare）
 - [`skills/hivo-identity/SKILL.md`](skills/hivo-identity/SKILL.md) — identity skill 说明
 - [`skills/hivo-drop/SKILL.md`](skills/hivo-drop/SKILL.md) — drop skill 说明
 
