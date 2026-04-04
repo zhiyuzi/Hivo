@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 
+from .acl import check_permission, register_owner_grants, revoke_all_grants
 from .auth import verify_token
 from .config import settings
 from .db import get_conn
@@ -48,7 +49,7 @@ def _err(status: int, error: str, message: str) -> JSONResponse:
     return JSONResponse(status_code=status, content={"error": error, "message": message})
 
 
-def _require_auth(authorization: Optional[str]) -> dict:
+def _require_auth(authorization: Optional[str]) -> tuple[dict, str]:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=401,
@@ -56,7 +57,7 @@ def _require_auth(authorization: Optional[str]) -> dict:
         )
     token = authorization[7:]
     try:
-        return verify_token(token)
+        return verify_token(token), token
     except ValueError:
         raise HTTPException(
             status_code=401,
@@ -131,7 +132,7 @@ async def upload_file(
     authorization: Optional[str] = Header(default=None),
     overwrite: bool = False,
 ):
-    payload = _require_auth(authorization)
+    payload, token = _require_auth(authorization)
     path = _validate_path(path)
     iss, sub = payload["iss"], payload["sub"]
 
@@ -177,14 +178,17 @@ async def upload_file(
                 (content_type, len(data), sha256, now, iss, sub, path),
             )
         else:
+            file_id = str(uuid.uuid4())
             conn.execute(
                 """INSERT INTO files
-                   (owner_sub, owner_iss, path, r2_key, content_type, size, sha256, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (sub, iss, path, r2_key, content_type, len(data), sha256, now, now),
+                   (id, owner_sub, owner_iss, path, r2_key, content_type, size, sha256, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (file_id, sub, iss, path, r2_key, content_type, len(data), sha256, now, now),
             )
 
     status = 200 if existing else 201
+    if not existing:
+        register_owner_grants(token, sub, file_id)
     return JSONResponse(
         status_code=status,
         content={"path": path, "size": len(data), "sha256": sha256},
@@ -196,18 +200,25 @@ def get_file(
     path: str,
     authorization: Optional[str] = Header(default=None),
 ):
-    payload = _require_auth(authorization)
+    payload, token = _require_auth(authorization)
     path = _validate_path(path)
     iss, sub = payload["iss"], payload["sub"]
 
     with get_conn() as conn:
+        # Fast path: owner
         row = conn.execute(
-            "SELECT r2_key, content_type FROM files WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
+            "SELECT id, r2_key, content_type FROM files WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
             (iss, sub, path),
         ).fetchone()
 
-    if not row:
-        return _err(404, "not_found", "File not found")
+        if not row:
+            # ACL path: file owned by someone else
+            row = conn.execute(
+                "SELECT id, r2_key, content_type FROM files WHERE path = ?",
+                (path,),
+            ).fetchone()
+            if not row or not check_permission(token, sub, row["id"], "read"):
+                return _err(404, "not_found", "File not found")
 
     try:
         data = download_object(row["r2_key"])
@@ -222,18 +233,23 @@ def head_file(
     path: str,
     authorization: Optional[str] = Header(default=None),
 ):
-    payload = _require_auth(authorization)
+    payload, token = _require_auth(authorization)
     path = _validate_path(path)
     iss, sub = payload["iss"], payload["sub"]
 
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT content_type, size, visibility, share_id FROM files WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
+            "SELECT id, content_type, size, visibility, share_id FROM files WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
             (iss, sub, path),
         ).fetchone()
 
-    if not row:
-        raise HTTPException(status_code=404)
+        if not row:
+            row = conn.execute(
+                "SELECT id, content_type, size, visibility, share_id FROM files WHERE path = ?",
+                (path,),
+            ).fetchone()
+            if not row or not check_permission(token, sub, row["id"], "read"):
+                raise HTTPException(status_code=404)
 
     headers = {
         "Content-Type": row["content_type"],
@@ -251,23 +267,29 @@ def delete_file(
     path: str,
     authorization: Optional[str] = Header(default=None),
 ):
-    payload = _require_auth(authorization)
+    payload, token = _require_auth(authorization)
     path = _validate_path(path)
     iss, sub = payload["iss"], payload["sub"]
 
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT r2_key FROM files WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
+            "SELECT id, r2_key FROM files WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
             (iss, sub, path),
         ).fetchone()
-        if not row:
-            return _err(404, "not_found", "File not found")
-        delete_object(row["r2_key"])
-        conn.execute(
-            "DELETE FROM files WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
-            (iss, sub, path),
-        )
 
+        if not row:
+            row = conn.execute(
+                "SELECT id, r2_key, owner_iss, owner_sub FROM files WHERE path = ?",
+                (path,),
+            ).fetchone()
+            if not row or not check_permission(token, sub, row["id"], "delete"):
+                return _err(404, "not_found", "File not found")
+
+        file_id = row["id"]
+        delete_object(row["r2_key"])
+        conn.execute("DELETE FROM files WHERE id = ?", (file_id,))
+
+    revoke_all_grants(token, file_id)
     return Response(status_code=204)
 
 
@@ -277,7 +299,7 @@ def patch_file(
     req: PatchRequest,
     authorization: Optional[str] = Header(default=None),
 ):
-    payload = _require_auth(authorization)
+    payload, token = _require_auth(authorization)
     path = _validate_path(path)
     iss, sub = payload["iss"], payload["sub"]
 
@@ -292,8 +314,15 @@ def patch_file(
             "WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
             (iss, sub, path),
         ).fetchone()
+
         if not row:
-            return _err(404, "not_found", "File not found")
+            row = conn.execute(
+                "SELECT id, visibility, share_id, content_type, size, sha256, created_at FROM files "
+                "WHERE path = ?",
+                (path,),
+            ).fetchone()
+            if not row or not check_permission(token, sub, row["id"], "write"):
+                return _err(404, "not_found", "File not found")
 
         visibility = req.visibility if req.visibility is not None else row["visibility"]
         share_id = row["share_id"]
@@ -304,9 +333,8 @@ def patch_file(
             share_id = None
 
         conn.execute(
-            "UPDATE files SET visibility = ?, share_id = ?, updated_at = ? "
-            "WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
-            (visibility, share_id, now, iss, sub, path),
+            "UPDATE files SET visibility = ?, share_id = ?, updated_at = ? WHERE id = ?",
+            (visibility, share_id, now, row["id"]),
         )
 
     return FileMetadata(
@@ -326,7 +354,7 @@ def list_files(
     prefix: str = "",
     authorization: Optional[str] = Header(default=None),
 ):
-    payload = _require_auth(authorization)
+    payload, token = _require_auth(authorization)
     iss, sub = payload["iss"], payload["sub"]
 
     with get_conn() as conn:

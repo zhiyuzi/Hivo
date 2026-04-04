@@ -4,6 +4,7 @@ Shared fixtures for hivo-drop tests.
 Strategy:
 - Patch app.auth.get_jwks to return a real Ed25519 test key (no HTTP)
 - Patch app.storage.upload_object / download_object / delete_object with in-memory store
+- Patch app.acl functions with in-memory ACL store
 - Use a temp SQLite DB for each test
 """
 import base64
@@ -70,12 +71,43 @@ class FakeStorage:
         self._store.pop(r2_key, None)
 
 
+# ── In-memory ACL ─────────────────────────────────────────────────────────────
+
+class FakeACL:
+    """Simulates hivo-acl grant/check/revoke in memory."""
+
+    def __init__(self):
+        # set of (subject, resource, action, effect)
+        self.grants: set[tuple[str, str, str, str]] = set()
+
+    def register_owner_grants(self, token: str, sub: str, file_id: str) -> None:
+        resource = f"drop:file:{file_id}"
+        for action in ("read", "write", "delete", "admin"):
+            self.grants.add((sub, resource, action, "allow"))
+
+    def check_permission(self, token: str, sub: str, file_id: str, action: str) -> bool:
+        resource = f"drop:file:{file_id}"
+        # deny wins
+        if (sub, resource, action, "deny") in self.grants:
+            return False
+        return (sub, resource, action, "allow") in self.grants
+
+    def revoke_all_grants(self, token: str, file_id: str) -> None:
+        resource = f"drop:file:{file_id}"
+        self.grants = {g for g in self.grants if g[1] != resource}
+
+    def add_grant(self, sub: str, file_id: str, action: str, effect: str = "allow") -> None:
+        """Test helper to manually add a grant."""
+        self.grants.add((sub, f"drop:file:{file_id}", action, effect))
+
+
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture()
 def client(tmp_path):
     db_path = str(tmp_path / "drop.db")
     fake_storage = FakeStorage()
+    fake_acl = FakeACL()
 
     with mock.patch("app.auth.get_jwks", return_value=[JWK_PUB]), \
          mock.patch("app.auth.settings") as auth_settings, \
@@ -84,7 +116,10 @@ def client(tmp_path):
          mock.patch("app.routes.upload_object", side_effect=fake_storage.upload), \
          mock.patch("app.routes.download_object", side_effect=fake_storage.download), \
          mock.patch("app.routes.delete_object", side_effect=fake_storage.delete), \
-         mock.patch("app.routes.make_r2_key", side_effect=lambda iss, sub, path: f"{sub}/{path}"):
+         mock.patch("app.routes.make_r2_key", side_effect=lambda iss, sub, path: f"{sub}/{path}"), \
+         mock.patch("app.routes.register_owner_grants", side_effect=fake_acl.register_owner_grants), \
+         mock.patch("app.routes.check_permission", side_effect=fake_acl.check_permission), \
+         mock.patch("app.routes.revoke_all_grants", side_effect=fake_acl.revoke_all_grants):
 
         auth_settings.trusted_issuers_list.return_value = [ISSUER]
         db_settings.database_path = db_path
@@ -99,4 +134,5 @@ def client(tmp_path):
 
         with TestClient(app, raise_server_exceptions=True) as c:
             c._fake_storage = fake_storage
+            c._fake_acl = fake_acl
             yield c

@@ -14,7 +14,7 @@ def init_db(db_path: str | None = None) -> None:
     with sqlite3.connect(path) as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS files (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                id           TEXT PRIMARY KEY,
                 owner_sub    TEXT NOT NULL,
                 owner_iss    TEXT NOT NULL,
                 path         TEXT NOT NULL,

@@ -14,7 +14,7 @@
 
 ```sql
 CREATE TABLE files (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          TEXT PRIMARY KEY,          -- UUIDv4，Python 层生成
     owner_sub   TEXT NOT NULL,             -- 文件所有者 (iss:sub)
     owner_iss   TEXT NOT NULL,             -- 签发方
     path        TEXT NOT NULL,             -- 用户定义的路径，如 docs/report.html
@@ -48,7 +48,42 @@ CREATE TABLE files (
 
 ---
 
-## 4. 可见性规则
+## 4. 权限模型
+
+hivo-drop 的权限分两层，互不替代：
+
+| 层 | 机制 | 适用场景 |
+|----|------|---------|
+| 能力链接（Capability） | `share_id`，任何人持有链接即可访问 | 公开分享、临时分享 |
+| ACL | 显式授权给特定 subject（agent 或 club） | 团队协作、细粒度权限控制 |
+
+**与 hivo-acl 的集成：**
+
+- 上传文件时，Drop 自动在 ACL 注册 owner 的完整权限（显式授权，无隐含继承）：
+  ```
+  POST https://acl.hivo.ink/grants {"subject": "{owner_sub}", "resource": "drop:file:{file_id}", "action": "read",   "effect": "allow"}
+  POST https://acl.hivo.ink/grants {"subject": "{owner_sub}", "resource": "drop:file:{file_id}", "action": "write",  "effect": "allow"}
+  POST https://acl.hivo.ink/grants {"subject": "{owner_sub}", "resource": "drop:file:{file_id}", "action": "delete", "effect": "allow"}
+  POST https://acl.hivo.ink/grants {"subject": "{owner_sub}", "resource": "drop:file:{file_id}", "action": "admin",  "effect": "allow"}
+  ```
+- 访问私有文件时，Drop 调用 ACL 鉴权：
+  ```
+  GET https://acl.hivo.ink/check?subject={caller_sub}&resource=drop:file:{file_id}&action=read
+  ```
+- 公开文件（`share_id`）绕过 ACL，Drop 自行判断，无需调用 ACL
+- 删除文件时，Drop 同步撤销 ACL 中该文件的所有授权：
+  ```
+  DELETE https://acl.hivo.ink/grants {"subject": "*", "resource": "drop:file:{file_id}"}
+  ```
+
+配置项：
+```
+ACL_URL=https://acl.hivo.ink
+```
+
+---
+
+## 4a. 可见性规则
 
 - **默认私有**：上传时 `visibility` 不填则为 `private`
 - **显式公开**：通过 `PATCH /files/{path}` 设置 `visibility=public`，此时生成 `share_id`
