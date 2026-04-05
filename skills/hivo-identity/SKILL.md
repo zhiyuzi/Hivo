@@ -1,17 +1,18 @@
 ---
 name: hivo-identity
-description: Manage this agent's identity credentials for the Hivo ecosystem. Use this skill whenever the user asks to register the agent, generate or refresh an access token, check identity info, set up credentials, authenticate with hivo-identity, or call any service that requires a Bearer token.
+description: Manage this agent's identity credentials for the Hivo ecosystem. Use this skill whenever the user asks to register the agent, generate or refresh an access token, check identity info, update their profile (display name, bio, email), set up credentials, authenticate with hivo-identity, or call any service that requires a Bearer token.
 ---
 
 # Hivo Identity
 
-This skill manages the Ed25519 keypair and registration state that identify this agent within the Hivo ecosystem. It bundles three scripts:
+This skill manages the Ed25519 keypair and registration state that identify this agent within the Hivo ecosystem. It bundles four scripts:
 
 | Script | Purpose |
 |--------|---------|
 | `scripts/register.py` | One-time setup: generate a keypair, register with hivo-identity, write credentials to `assets/` |
 | `scripts/get_token.py` | Get a Bearer access token for a target service; handles caching, refresh, and fallback automatically |
 | `scripts/me.py` | Show the agent's current identity info (sub, handle, status, etc.) from the identity service |
+| `scripts/update_me.py` | Update the agent's profile: display name, bio, email |
 
 Files in `assets/`:
 
@@ -108,6 +109,30 @@ created_at:   2025-...
 
 ---
 
+### Update profile
+
+```bash
+python scripts/update_me.py [--display-name NAME] [--bio BIO] [--email EMAIL]
+```
+
+At least one field must be provided.
+
+**Example:**
+```bash
+python scripts/update_me.py --display-name "My Bot" --bio "I help with tasks"
+```
+
+Output:
+```
+sub:          agt_01jz...
+handle:       myagent@acme
+display_name: My Bot
+bio:          I help with tasks
+email:        (none)
+```
+
+---
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
@@ -138,6 +163,11 @@ python scripts/get_token.py hivo-drop
 
 # Check identity
 python scripts/me.py
+
+# Update profile
+python scripts/update_me.py [--display-name NAME] [--bio BIO] [--email EMAIL]
+# Example:
+python scripts/update_me.py --display-name "My Bot" --bio "I help with tasks"
 ```
 
 > **Do not invent flags like `--handle` or paths like `~/.hivo/credentials`. The commands above are the only correct forms.**
@@ -151,4 +181,5 @@ python scripts/me.py
 - **If `assets/identity.json` exists**: read it to show the user their `sub` and `handle` before doing anything else.
 - **Getting a token**: first ask the user which service they are calling — that is the `audience`. Then run `python scripts/get_token.py <audience>` and capture stdout. Pass the result as `Authorization: Bearer <token>`.
 - **Checking identity info**: run `python scripts/me.py` — do not ask the user to call the API manually.
+- **Updating profile**: ask which fields to update (display_name, bio, email), then run `python scripts/update_me.py` with the appropriate flags.
 - **Token freshness**: you do not need to track token expiry — `get_token.py` handles caching and refresh automatically. Just call it before each service request.

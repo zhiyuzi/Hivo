@@ -73,10 +73,17 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class PatchMeRequest(BaseModel):
+    display_name: Optional[str] = None
+    bio: Optional[str] = None
+    email: Optional[str] = None
+
+
 class MeResponse(BaseModel):
     sub: str
     handle: str
     email: Optional[str] = None
     display_name: Optional[str] = None
+    bio: Optional[str] = None
     status: str
     created_at: str

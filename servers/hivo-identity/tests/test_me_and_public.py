@@ -25,6 +25,7 @@ def get_tokens(client, sub, key):
     r = client.post("/token", json={
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
         "assertion": assertion,
+        "audience": "hivo-identity",
     })
     assert r.status_code == 200
     return r.json()["access_token"], r.json()["refresh_token"]
@@ -40,6 +41,72 @@ def test_me_success(client, registered_agent):
     assert data["sub"] == sub
     assert data["handle"] == handle
     assert data["status"] == "active"
+    assert data["bio"] is None
+
+
+def test_patch_me_display_name(client, registered_agent):
+    sub, _, key = registered_agent
+    access_token, _ = get_tokens(client, sub, key)
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    r = client.patch("/me", headers=headers, json={"display_name": "New Name"})
+    assert r.status_code == 200
+    assert r.json()["display_name"] == "New Name"
+
+    # Verify persisted
+    r = client.get("/me", headers=headers)
+    assert r.json()["display_name"] == "New Name"
+
+
+def test_patch_me_bio(client, registered_agent):
+    sub, _, key = registered_agent
+    access_token, _ = get_tokens(client, sub, key)
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    r = client.patch("/me", headers=headers, json={"bio": "I am a test agent"})
+    assert r.status_code == 200
+    assert r.json()["bio"] == "I am a test agent"
+
+
+def test_patch_me_email(client, registered_agent):
+    sub, _, key = registered_agent
+    access_token, _ = get_tokens(client, sub, key)
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    r = client.patch("/me", headers=headers, json={"email": "new@example.com"})
+    assert r.status_code == 200
+    assert r.json()["email"] == "new@example.com"
+
+
+def test_patch_me_multiple_fields(client, registered_agent):
+    sub, _, key = registered_agent
+    access_token, _ = get_tokens(client, sub, key)
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    r = client.patch("/me", headers=headers, json={
+        "display_name": "Multi",
+        "bio": "Updated bio",
+        "email": "multi@example.com",
+    })
+    assert r.status_code == 200
+    data = r.json()
+    assert data["display_name"] == "Multi"
+    assert data["bio"] == "Updated bio"
+    assert data["email"] == "multi@example.com"
+
+
+def test_patch_me_empty_body(client, registered_agent):
+    sub, _, key = registered_agent
+    access_token, _ = get_tokens(client, sub, key)
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    r = client.patch("/me", headers=headers, json={})
+    assert r.status_code == 422
+
+
+def test_patch_me_no_auth(client):
+    r = client.patch("/me", json={"bio": "test"})
+    assert r.status_code == 401
 
 
 def test_me_no_auth(client):
@@ -83,11 +150,10 @@ def test_index_markdown(client):
     r = client.get("/")
     assert r.status_code == 200
     assert "text/markdown" in r.headers["content-type"]
-    assert "Hivo Identity" in r.text
+    assert "hivo-identity" in r.text
 
 
 def test_readme_markdown(client):
+    """README.md route was removed; verify 404."""
     r = client.get("/README.md")
-    assert r.status_code == 200
-    assert "text/markdown" in r.headers["content-type"]
-    assert "Registration" in r.text
+    assert r.status_code == 404

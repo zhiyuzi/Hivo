@@ -12,7 +12,7 @@ from .config import settings
 from .db import get_conn
 from .keys import get_all_public_keys, get_current_signing_key
 from .models import (
-    MeResponse, RefreshRequest, RegisterRequest, RegisterResponse,
+    MeResponse, PatchMeRequest, RefreshRequest, RegisterRequest, RegisterResponse,
     TokenRequest, TokenResponse, VerifyRequest, VerifyResponse,
 )
 from .tokens import (
@@ -245,7 +245,7 @@ def me(payload: dict = Depends(_require_auth)):
     sub = payload["sub"]
     with get_conn() as conn:
         agent = conn.execute(
-            "SELECT sub, handle, email, display_name, status, created_at FROM subjects WHERE sub = ?",
+            "SELECT sub, handle, email, display_name, bio, status, created_at FROM subjects WHERE sub = ?",
             (sub,),
         ).fetchone()
     if not agent:
@@ -255,6 +255,48 @@ def me(payload: dict = Depends(_require_auth)):
         handle=agent["handle"],
         email=agent["email"],
         display_name=agent["display_name"],
+        bio=agent["bio"],
+        status=agent["status"],
+        created_at=agent["created_at"],
+    )
+
+
+@router.patch("/me", response_model=MeResponse)
+def patch_me(req: PatchMeRequest, payload: dict = Depends(_require_auth)):
+    sub = payload["sub"]
+
+    fields = {}
+    if req.display_name is not None:
+        fields["display_name"] = req.display_name
+    if req.bio is not None:
+        fields["bio"] = req.bio
+    if req.email is not None:
+        fields["email"] = req.email
+
+    if not fields:
+        return _err(422, "validation_error", "No fields to update")
+
+    fields["updated_at"] = _now_iso()
+
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [sub]
+
+    with get_conn() as conn:
+        conn.execute(f"UPDATE subjects SET {set_clause} WHERE sub = ?", values)
+        agent = conn.execute(
+            "SELECT sub, handle, email, display_name, bio, status, created_at FROM subjects WHERE sub = ?",
+            (sub,),
+        ).fetchone()
+
+    if not agent:
+        raise HTTPException(status_code=401, detail={"error": "invalid_token", "message": "Agent not found"})
+
+    return MeResponse(
+        sub=agent["sub"],
+        handle=agent["handle"],
+        email=agent["email"],
+        display_name=agent["display_name"],
+        bio=agent["bio"],
         status=agent["status"],
         created_at=agent["created_at"],
     )

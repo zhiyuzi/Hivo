@@ -71,6 +71,9 @@ def main() -> None:
 
     print(f"sub:          {data['sub']}")
     print(f"handle:       {data['handle']}")
+    print(f"display_name: {data.get('display_name') or '(none)'}")
+    print(f"bio:          {data.get('bio') or '(none)'}")
+    print(f"email:        {data.get('email') or '(none)'}")
     print(f"status:       {data['status']}")
     print(f"created_at:   {data['created_at']}")
 

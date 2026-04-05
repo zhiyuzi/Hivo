@@ -113,6 +113,7 @@ The SQLite database is created automatically at startup. On first boot, the serv
 | POST | `/token` | Exchange `private_key_jwt` for access token | None (self-attested) |
 | POST | `/token/refresh` | Refresh access token | refresh_token |
 | GET | `/me` | Current identity info | Bearer |
+| PATCH | `/me` | Update profile (display_name, bio, email) | Bearer |
 | GET | `/.well-known/openid-configuration` | OIDC Discovery metadata | None |
 | GET | `/jwks.json` | Service signing public keys | None |
 | GET | `/health` | Health check | None |

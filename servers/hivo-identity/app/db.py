@@ -18,12 +18,19 @@ def init_db(db_path: str | None = None) -> None:
             conn.commit()
         except sqlite3.OperationalError:
             pass  # column already exists
+        # Migration: add bio column to existing DBs
+        try:
+            conn.execute("ALTER TABLE subjects ADD COLUMN bio TEXT")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # column already exists
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS subjects (
                 sub          TEXT PRIMARY KEY,
                 handle       TEXT NOT NULL UNIQUE,
                 email        TEXT,
                 display_name TEXT,
+                bio          TEXT,
                 status       TEXT NOT NULL DEFAULT 'active',
                 jwk_pub      TEXT NOT NULL,
                 created_at   TEXT NOT NULL,
