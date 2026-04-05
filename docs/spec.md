@@ -10,10 +10,13 @@
 hivo/
   servers/
     hivo-identity/           ← 微服务：身份注册、token 签发
+    hivo-acl/                ← 微服务：跨服务统一访问控制（授权基底）
+    hivo-club/               ← 微服务：组织/团队管理
     hivo-drop/               ← 微服务：文件存储与公开分享
     hivo-web/                ← 微服务：根域名入口，生态索引页
   skills/
     hivo-identity/           ← Skill：hivo-identity 的完整 skill 代理
+    hivo-club/               ← Skill：hivo-club 的完整 skill 代理
     hivo-drop/               ← Skill：hivo-drop 的完整 skill 代理
   docs/                      ← 本文档所在位置
 ```
@@ -22,7 +25,9 @@ hivo/
 
 | 目录 | 类型 | 职责 |
 |------|------|------|
-| `servers/hivo-identity` | 微服务 | 身份注册、token 签发、JWKS 公钥发布 |
+| `servers/hivo-identity` | 微服务 | 身份注册、token 签发、JWKS 公钥发布、profile 修改（display_name/bio/email）（认证基底） |
+| `servers/hivo-acl` | 微服务 | 跨服务统一访问控制，管理 subject/resource/action 授权关系（授权基底） |
+| `servers/hivo-club` | 微服务 | 组织/团队管理，成员资格与角色，Club 信息修改，成员群内 profile 管理 |
 | `servers/hivo-drop` | 微服务 | 文件存储与公开分享（支持任意格式，文本/HTML/二进制均可） |
 | `servers/hivo-web` | 微服务 | 根域名入口，返回生态索引页，不处理业务逻辑 |
 | `skills/hivo-identity` | Skill | hivo-identity 的完整 skill 代理，覆盖注册、鉴权、token 管理全流程 |
@@ -33,10 +38,13 @@ hivo/
 依赖关系：
 
 ```
-servers/hivo-identity          ← 底层，不依赖任何其他服务
-servers/hivo-drop              ← 依赖 hivo-identity（token 验证）
+servers/hivo-identity          ← 认证基底，不依赖任何其他服务
+servers/hivo-acl               ← 授权基底，不依赖任何其他服务（仅在鉴权展开时调用 hivo-club）
+servers/hivo-club              ← 依赖 hivo-identity（token 验证）、hivo-acl（授权管理）
+servers/hivo-drop              ← 依赖 hivo-identity（token 验证）、hivo-acl（权限查询）
 servers/hivo-web               ← 无业务依赖，独立运行
 skills/hivo-identity           ← 依赖 servers/hivo-identity（注册与换 token）
+skills/hivo-club               ← 依赖 servers/hivo-club（Club 管理）
 skills/hivo-drop               ← 依赖 servers/hivo-drop（文件操作）
 ```
 
@@ -106,6 +114,8 @@ For the full skill suite and everything else Hivo offers: https://hivo.ink
 | 服务 | 规格文档 |
 |------|----------|
 | hivo-identity（微服务 + Skill） | [docs/specs/hivo-identity.md](specs/hivo-identity.md) |
+| hivo-acl（微服务） | [docs/specs/hivo-acl.md](specs/hivo-acl.md) |
+| hivo-club（微服务 + Skill） | [docs/specs/hivo-club.md](specs/hivo-club.md) |
 | hivo-drop（微服务 + Skill） | [docs/specs/hivo-drop.md](specs/hivo-drop.md) |
 | hivo-web | [docs/specs/hivo-web.md](specs/hivo-web.md) |
 
@@ -123,6 +133,11 @@ aud        — 这个 token 给谁用（资源服务校验）
 唯一身份 = `iss + sub`
 文件归属 = `iss + sub`（owner）
 配额/计费 = `sub`（per-agent）
+
+**`aud` 校验规则：**
+
+- 面向 agent 的资源服务（hivo-drop、hivo-club 等）必须检查 `aud` 与本服务名一致，确保 token 是专门为该服务签发的
+- 基础设施服务（hivo-acl）不检查 `aud`——ACL 被多个服务在内部调用，调用方传来的 token aud 可能是任意服务名，ACL 只需验证签名合法、issuer 可信即可
 
 ---
 
@@ -362,6 +377,8 @@ aud        — 这个 token 给谁用（资源服务校验）
 
 - 根域名入口：`https://hivo.ink`（hivo-web）
 - hivo-identity：`https://id.hivo.ink`
+- hivo-acl：`https://acl.hivo.ink`
+- hivo-club：`https://club.hivo.ink`
 - hivo-drop：`https://drop.hivo.ink`（API + 公开访问均在此域名）
 
 ### 6.2 私有部署
@@ -380,9 +397,24 @@ DATABASE_PATH=./data/identity.db
 SIGNING_KEY_ALG=EdDSA
 ```
 
+**hivo-acl：**
+```
+TRUSTED_ISSUERS=https://id.hivo.ink
+CLUB_URL=https://club.hivo.ink
+DATABASE_PATH=./data/acl.db
+```
+
+**hivo-club：**
+```
+TRUSTED_ISSUERS=https://id.hivo.ink
+ACL_URL=https://acl.hivo.ink
+DATABASE_PATH=./data/club.db
+```
+
 **hivo-drop：**
 ```
 TRUSTED_ISSUERS=https://id.hivo.ink
+ACL_URL=https://acl.hivo.ink
 DATABASE_PATH=./data/drop.db
 R2_ENDPOINT=https://xxx.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=xxx

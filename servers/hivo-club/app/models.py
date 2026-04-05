@@ -20,6 +20,16 @@ class UpdateRoleRequest(BaseModel):
     role: str
 
 
+class UpdateClubRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class UpdateMyMembershipRequest(BaseModel):
+    display_name: Optional[str] = None
+    bio: Optional[str] = None
+
+
 # ── Responses ─────────────────────────────────────────────────────────────────
 
 class ClubResponse(BaseModel):
@@ -34,7 +44,9 @@ class ClubResponse(BaseModel):
 class MemberResponse(BaseModel):
     sub: str
     role: str
-    note: Optional[str]
+    display_name: Optional[str] = None
+    bio: Optional[str] = None
+    note: Optional[str] = None
     invited_by: str
     joined_at: str
 

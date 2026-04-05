@@ -25,9 +25,9 @@ Club 是"容器"——它不是消息系统，不是文件系统，只管理"谁
 
 | 角色 | 能做什么 |
 |------|---------|
-| `owner` | 所有操作，包括解散 Club、转让 owner |
-| `admin` | 邀请/移除成员、修改成员角色（不能操作 owner） |
-| `member` | 查看成员列表，无管理权限 |
+| `owner` | 所有操作，包括解散 Club、转让 owner、修改 Club 信息 |
+| `admin` | 邀请/移除成员、修改成员角色（不能操作 owner）、修改 Club 信息 |
+| `member` | 查看成员列表、修改自己的群内昵称和介绍 |
 
 ---
 
@@ -54,7 +54,9 @@ CREATE TABLE memberships (
     club_id     TEXT NOT NULL REFERENCES clubs(club_id),
     sub         TEXT NOT NULL,      -- 成员 sub（来自 hivo-identity）
     role        TEXT NOT NULL,      -- owner / admin / member（无默认值，必须显式指定）
-    note        TEXT,               -- 成员在此 club 内的自我描述，如"负责翻译"，可空
+    display_name TEXT,              -- 群内昵称，可空（空时 fallback 到 identity 的 display_name）
+    bio         TEXT,               -- 群内自我介绍，可空（空时 fallback 到 identity 的 bio）
+    note        TEXT,               -- 邀请时的备注，如"负责翻译"，可空
     invited_by  TEXT NOT NULL,      -- 邀请者 sub；创建者自邀时填自身 sub
     joined_at   TEXT NOT NULL,
 
@@ -91,11 +93,13 @@ CREATE TABLE invite_links (
 | GET | `/` | 生态索引页（Markdown） | 无 |
 | POST | `/clubs` | 创建 Club | Bearer |
 | GET | `/clubs/{club_id}` | 查看 Club 信息 | Bearer（需是成员） |
+| PATCH | `/clubs/{club_id}` | 修改 Club 名称/描述 | Bearer（需是 owner/admin） |
 | DELETE | `/clubs/{club_id}` | 解散 Club | Bearer（需是 owner） |
 | GET | `/clubs/{club_id}/members` | 列出成员 | Bearer（需是成员） |
 | POST | `/clubs/{club_id}/members` | 直接添加成员（按 sub） | Bearer（需是 admin/owner） |
 | PATCH | `/clubs/{club_id}/members/{sub}` | 修改成员角色 | Bearer（需是 admin/owner） |
 | DELETE | `/clubs/{club_id}/members/{sub}` | 移除成员 / 退出 | Bearer |
+| PATCH | `/clubs/{club_id}/me` | 修改自己的群内昵称/介绍 | Bearer（需是成员） |
 | POST | `/clubs/{club_id}/invite-links` | 创建邀请链接 | Bearer（需是 admin/owner） |
 | GET | `/clubs/{club_id}/invite-links` | 列出邀请链接 | Bearer（需是 admin/owner） |
 | DELETE | `/clubs/{club_id}/invite-links/{token}` | 撤销邀请链接 | Bearer（需是 admin/owner） |
@@ -115,6 +119,18 @@ CREATE TABLE invite_links (
 
 - 创建者自动以 `owner` 角色加入，写入 memberships 表
 - 返回 `club_id`
+
+### PATCH /clubs/{club_id}
+
+修改 Club 的名称或描述。
+
+```json
+{"name": "new-name", "description": "new description"}
+```
+
+- 所有字段均可选，但至少提供一个
+- 需要 `owner` 或 `admin` 角色
+- 返回更新后的完整 Club 信息
 
 ### POST /clubs/{club_id}/members
 
@@ -144,6 +160,18 @@ CREATE TABLE invite_links (
 - 验证 token 有效性（未过期、未超出使用次数）
 - 已是成员时幂等返回 `200`
 - 加入后 `use_count` +1
+
+### PATCH /clubs/{club_id}/me
+
+修改自己在 Club 内的群内昵称和介绍。
+
+```json
+{"display_name": "My Nickname", "bio": "Hello everyone"}
+```
+
+- 所有字段均可选，但至少提供一个
+- 任何成员均可修改自己的
+- 返回更新后的成员信息（sub、role、display_name、bio、note、invited_by、joined_at）
 
 ### GET /me/clubs
 
@@ -240,6 +268,8 @@ hivo-club/
     join.py         ← 通过邀请链接加入（POST /join/{token}）
     leave.py        ← 退出 Club（DELETE /clubs/{club_id}/members/{sub}）
     my_clubs.py     ← 查询当前 agent 所属的所有 club（GET /me/clubs）
+    update_club.py  ← 修改 Club 名称/描述（PATCH /clubs/{club_id}）
+    update_me.py    ← 修改群内昵称/介绍（PATCH /clubs/{club_id}/me）
   assets/
     config.json     ← club_url，读取 hivo-club 服务地址
 ```

@@ -1,6 +1,6 @@
 ---
 name: hivo-club
-description: Manage teams and organizations in Hivo Club. Use this skill when the user asks to create a club, invite members, join via invite link, list members, view club info, leave a club, or list their clubs.
+description: Manage teams and organizations in Hivo Club. Use this skill when the user asks to create a club, invite members, join via invite link, list members, view club info, update club info, update their membership profile, leave a club, or list their clubs.
 ---
 
 # Hivo Club
@@ -8,7 +8,7 @@ description: Manage teams and organizations in Hivo Club. Use this skill when th
 > **CRITICAL — Before starting, MUST use the Read tool to read `../hivo-identity/SKILL.md`.**
 > All hivo-club operations require a valid Bearer token. The token is obtained automatically via the hivo-identity skill's `get_token.py` — but hivo-identity must be registered first (`assets/identity.json` and `assets/private_key.pem` must exist). If not registered yet, complete registration following `../hivo-identity/SKILL.md` before proceeding here.
 
-This skill manages teams and organizations in the Hivo Club service. It bundles seven scripts:
+This skill manages teams and organizations in the Hivo Club service. It bundles nine scripts:
 
 | Script | Purpose |
 |--------|---------|
@@ -19,6 +19,8 @@ This skill manages teams and organizations in the Hivo Club service. It bundles 
 | `scripts/join.py` | Join a Club via invite link |
 | `scripts/leave.py` | Leave a Club |
 | `scripts/my_clubs.py` | List all Clubs you belong to |
+| `scripts/update_club.py` | Update a Club's name or description (owner/admin) |
+| `scripts/update_me.py` | Update your membership profile in a Club (display name, bio) |
 
 Files in `assets/`:
 
@@ -129,6 +131,36 @@ Note: The owner cannot leave. Transfer ownership first or dissolve the club.
 
 ---
 
+### Update Club info
+
+```bash
+python scripts/update_club.py <club_id> [--name NAME] [--description DESC]
+```
+
+At least one field must be provided. Only owner or admin can update.
+
+**Example:**
+```bash
+python scripts/update_club.py club_a1b2c3d4-... --name "New Name" --description "New desc"
+```
+
+---
+
+### Update membership profile
+
+```bash
+python scripts/update_me.py <club_id> [--display-name NAME] [--bio BIO]
+```
+
+At least one field must be provided. Any member can update their own profile.
+
+**Example:**
+```bash
+python scripts/update_me.py club_a1b2c3d4-... --display-name "My Nickname" --bio "Hello everyone"
+```
+
+---
+
 ### List my Clubs
 
 ```bash
@@ -143,9 +175,9 @@ Output: table with club_id, name, role, joined_at.
 
 | Role | Capabilities |
 |------|--------------|
-| `owner` | All operations, including dissolving Club |
-| `admin` | Invite/remove members, modify member roles (cannot operate on owner) |
-| `member` | View member list only |
+| `owner` | All operations, including dissolving Club and updating club info |
+| `admin` | Invite/remove members, modify member roles (cannot operate on owner), update club info |
+| `member` | View member list, update own membership profile (display name, bio) |
 
 ---
 
@@ -190,6 +222,12 @@ python scripts/leave.py <club_id>
 
 # My clubs
 python scripts/my_clubs.py
+
+# Update club info (owner/admin only)
+python scripts/update_club.py <club_id> [--name NAME] [--description DESC]
+
+# Update membership profile
+python scripts/update_me.py <club_id> [--display-name NAME] [--bio BIO]
 ```
 
 > **Do not invent flags or paths. The commands above are the only correct forms.**
@@ -203,5 +241,7 @@ python scripts/my_clubs.py
 - **View info**: ask for club_id. Then run `info.py`.
 - **List members**: ask for club_id. Then run `members.py`.
 - **Leave**: confirm with the user, then run `leave.py`.
+- **Update club info**: ask for club_id and which fields to change (name, description). Then run `update_club.py`. Only owner/admin can do this.
+- **Update membership profile**: ask for club_id and which fields to change (display_name, bio). Then run `update_me.py`. Any member can update their own.
 - **My clubs**: run `my_clubs.py` to show all clubs.
 - **Token**: you do not need to manage tokens — all scripts call `../hivo-identity/scripts/get_token.py hivo-club` automatically.

@@ -15,6 +15,8 @@ from .models import (
     JoinResponse,
     MemberResponse,
     MyClubEntry,
+    UpdateClubRequest,
+    UpdateMyMembershipRequest,
     UpdateRoleRequest,
 )
 
@@ -118,16 +120,13 @@ def list_members(club_id: str, payload: dict = Depends(require_auth)):
             return _err(403, "forbidden", "Only club members can view the member list")
 
         rows = conn.execute(
-            "SELECT sub, role, note, invited_by, joined_at FROM memberships WHERE club_id = ? ORDER BY joined_at",
+            "SELECT sub, role, display_name, bio, note, invited_by, joined_at FROM memberships WHERE club_id = ? ORDER BY joined_at",
             (club_id,),
         ).fetchall()
 
     return {
         "members": [
-            MemberResponse(
-                sub=r["sub"], role=r["role"], note=r["note"],
-                invited_by=r["invited_by"], joined_at=r["joined_at"],
-            ).model_dump()
+            MemberResponse(**dict(r)).model_dump()
             for r in rows
         ]
     }
@@ -304,6 +303,74 @@ def update_role(
         )
 
     return {"sub": target_sub, "role": req.role}
+
+
+# ── Update Club ──────────────────────────────────────────────────────────────
+
+@router.patch("/clubs/{club_id}", response_model=ClubResponse)
+def update_club(club_id: str, req: UpdateClubRequest, payload: dict = Depends(require_auth)):
+    sub = payload["sub"]
+
+    fields = {}
+    if req.name is not None:
+        fields["name"] = req.name
+    if req.description is not None:
+        fields["description"] = req.description
+
+    if not fields:
+        return _err(422, "validation_error", "No fields to update")
+
+    with get_conn() as conn:
+        membership = _get_membership(conn, club_id, sub)
+        if not membership:
+            return _err(403, "forbidden", "Not a member of this club")
+        if membership["role"] not in ("owner", "admin"):
+            return _err(403, "forbidden", "Only owner or admin can update club info")
+
+        fields["updated_at"] = _now_iso()
+        set_clause = ", ".join(f"{k} = ?" for k in fields)
+        values = list(fields.values()) + [club_id]
+        conn.execute(f"UPDATE clubs SET {set_clause} WHERE club_id = ?", values)
+
+        club = conn.execute(
+            "SELECT club_id, name, description, owner_sub, created_at, updated_at FROM clubs WHERE club_id = ?",
+            (club_id,),
+        ).fetchone()
+
+    return ClubResponse(**dict(club))
+
+
+# ── Update My Membership ─────────────────────────────────────────────────────
+
+@router.patch("/clubs/{club_id}/me", response_model=MemberResponse)
+def update_my_membership(club_id: str, req: UpdateMyMembershipRequest, payload: dict = Depends(require_auth)):
+    sub = payload["sub"]
+
+    fields = {}
+    if req.display_name is not None:
+        fields["display_name"] = req.display_name
+    if req.bio is not None:
+        fields["bio"] = req.bio
+
+    if not fields:
+        return _err(422, "validation_error", "No fields to update")
+
+    with get_conn() as conn:
+        membership = _get_membership(conn, club_id, sub)
+        if not membership:
+            return _err(403, "forbidden", "Not a member of this club")
+
+        set_clause = ", ".join(f"{k} = ?" for k in fields)
+        values = list(fields.values()) + [club_id, sub]
+        conn.execute(f"UPDATE memberships SET {set_clause} WHERE club_id = ? AND sub = ?", values)
+
+        row = conn.execute(
+            "SELECT sub, role, display_name, bio, note, invited_by, joined_at "
+            "FROM memberships WHERE club_id = ? AND sub = ?",
+            (club_id, sub),
+        ).fetchone()
+
+    return MemberResponse(**dict(row))
 
 
 # ── Dissolve Club ─────────────────────────────────────────────────────────────

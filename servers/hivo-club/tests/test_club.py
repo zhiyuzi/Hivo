@@ -312,6 +312,125 @@ def test_non_owner_cannot_dissolve(client):
     assert r.status_code == 403
 
 
+# ── Update Club ───────────────────────────────────────────────────────────────
+
+def test_update_club_name(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    r = client.patch(f"/clubs/{club_id}", json={"name": "New Name"}, headers=auth())
+    assert r.status_code == 200
+    assert r.json()["name"] == "New Name"
+
+
+def test_update_club_description(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    r = client.patch(f"/clubs/{club_id}", json={"description": "New desc"}, headers=auth())
+    assert r.status_code == 200
+    assert r.json()["description"] == "New desc"
+
+
+def test_update_club_multiple_fields(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    r = client.patch(f"/clubs/{club_id}", json={"name": "Updated", "description": "Updated desc"}, headers=auth())
+    assert r.status_code == 200
+    data = r.json()
+    assert data["name"] == "Updated"
+    assert data["description"] == "Updated desc"
+
+
+def test_update_club_empty_body(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    r = client.patch(f"/clubs/{club_id}", json={}, headers=auth())
+    assert r.status_code == 422
+
+
+def test_update_club_admin_allowed(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_adm5", "role": "admin"}, headers=auth())
+
+    adm_token = make_token(sub="agt_adm5")
+    r = client.patch(f"/clubs/{club_id}", json={"name": "Admin Updated"}, headers=auth(adm_token))
+    assert r.status_code == 200
+    assert r.json()["name"] == "Admin Updated"
+
+
+def test_update_club_member_forbidden(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_mem5", "role": "member"}, headers=auth())
+
+    mem_token = make_token(sub="agt_mem5")
+    r = client.patch(f"/clubs/{club_id}", json={"name": "Nope"}, headers=auth(mem_token))
+    assert r.status_code == 403
+
+
+def test_update_club_non_member_forbidden(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    outsider = make_token(sub="agt_outsider")
+    r = client.patch(f"/clubs/{club_id}", json={"name": "Nope"}, headers=auth(outsider))
+    assert r.status_code == 403
+
+
+# ── Update My Membership ─────────────────────────────────────────────────────
+
+def test_update_my_membership_display_name(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    r = client.patch(f"/clubs/{club_id}/me", json={"display_name": "Boss"}, headers=auth())
+    assert r.status_code == 200
+    assert r.json()["display_name"] == "Boss"
+
+
+def test_update_my_membership_bio(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    r = client.patch(f"/clubs/{club_id}/me", json={"bio": "I run this club"}, headers=auth())
+    assert r.status_code == 200
+    assert r.json()["bio"] == "I run this club"
+
+
+def test_update_my_membership_multiple(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    r = client.patch(f"/clubs/{club_id}/me", json={"display_name": "Nick", "bio": "Hello"}, headers=auth())
+    assert r.status_code == 200
+    data = r.json()
+    assert data["display_name"] == "Nick"
+    assert data["bio"] == "Hello"
+
+
+def test_update_my_membership_empty_body(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    r = client.patch(f"/clubs/{club_id}/me", json={}, headers=auth())
+    assert r.status_code == 422
+
+
+def test_update_my_membership_non_member(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    outsider = make_token(sub="agt_outsider2")
+    r = client.patch(f"/clubs/{club_id}/me", json={"display_name": "Nope"}, headers=auth(outsider))
+    assert r.status_code == 403
+
+
+def test_update_my_membership_visible_in_members_list(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client.patch(f"/clubs/{club_id}/me", json={"display_name": "Custom Nick", "bio": "My intro"}, headers=auth())
+
+    r = client.get(f"/clubs/{club_id}/members", headers=auth())
+    assert r.status_code == 200
+    member = r.json()["members"][0]
+    assert member["display_name"] == "Custom Nick"
+    assert member["bio"] == "My intro"
+
+
 # ── My Clubs ───────────────────────────────────────────────────────────────────
 
 def test_my_clubs(client):

@@ -8,6 +8,13 @@ def init_db(db_path: str | None = None) -> None:
     path = db_path or settings.database_path
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with sqlite3.connect(path) as conn:
+        # Migration: add display_name and bio to existing memberships tables
+        for col in ("display_name TEXT", "bio TEXT"):
+            try:
+                conn.execute(f"ALTER TABLE memberships ADD COLUMN {col}")
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass  # column already exists
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS clubs (
                 club_id     TEXT PRIMARY KEY,
@@ -19,13 +26,15 @@ def init_db(db_path: str | None = None) -> None:
             );
 
             CREATE TABLE IF NOT EXISTS memberships (
-                id          TEXT PRIMARY KEY,
-                club_id     TEXT NOT NULL REFERENCES clubs(club_id),
-                sub         TEXT NOT NULL,
-                role        TEXT NOT NULL,
-                note        TEXT,
-                invited_by  TEXT NOT NULL,
-                joined_at   TEXT NOT NULL,
+                id           TEXT PRIMARY KEY,
+                club_id      TEXT NOT NULL REFERENCES clubs(club_id),
+                sub          TEXT NOT NULL,
+                role         TEXT NOT NULL,
+                display_name TEXT,
+                bio          TEXT,
+                note         TEXT,
+                invited_by   TEXT NOT NULL,
+                joined_at    TEXT NOT NULL,
 
                 UNIQUE(club_id, sub)
             );
