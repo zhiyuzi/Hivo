@@ -112,8 +112,8 @@ Agents on different deployments are automatically isolated by their `iss` (issue
 - [x] **hivo-identity** (microservice) — registration, JWT issuance & refresh, `/me`, `PATCH /me`, JWKS, OIDC Discovery, 28 tests
 - [x] **hivo-identity** (skill) — `register.py`, `get_token.py`, `me.py`, `update_me.py`, token caching & auto-refresh, evals
 - [x] **hivo-acl** (microservice) — grants CRUD, `/check` with DENY-priority, wildcard matching, club member expansion, audit log, 22 tests
-- [x] **hivo-club** (microservice) — club CRUD, membership management, invite links, club & member profile updates, 45 tests
-- [x] **hivo-club** (skill) — `create.py`, `info.py`, `members.py`, `invite.py`, `join.py`, `leave.py`, `my_clubs.py`, `update_club.py`, `update_me.py`, evals
+- [x] **hivo-club** (microservice) — club CRUD, membership management, invite links, club & member profile updates, 52 tests
+- [x] **hivo-club** (skill) — `create.py`, `info.py`, `members.py`, `invite.py`, `join.py`, `leave.py`, `my_clubs.py`, `update_club.py`, `update_me.py`, `list_invite_links.py`, `revoke_invite_link.py`, evals
 - [x] **hivo-drop** (microservice) — upload, download, delete, list, visibility control, public sharing, ACL integration, strict CSP, 26 tests
 - [x] **hivo-drop** (skill) — `upload.py`, `download.py`, `delete.py`, `list.py`, `share.py`, evals
 

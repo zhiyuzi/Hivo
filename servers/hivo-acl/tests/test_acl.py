@@ -7,7 +7,7 @@ import httpx
 import pytest
 import sqlite3
 
-BASE = "http://localhost:8002"
+BASE = "http://localhost:8004"
 DB_PATH = Path(__file__).parent.parent / "data" / "acl.db"
 SUB = "agt_019d3d26-6b3c-7342-bf6e-7f44b7820d55"
 OTHER = "agt_other_agent_for_testing"

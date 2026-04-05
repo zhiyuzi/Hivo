@@ -112,8 +112,8 @@ R2_BUCKET_NAME=your-bucket
 - [x] **hivo-identity**（微服务）— 注册、JWT 签发与刷新、`/me`、`PATCH /me`、JWKS、OIDC Discovery，28 个测试
 - [x] **hivo-identity**（Skill）— `register.py`、`get_token.py`、`me.py`、`update_me.py`、Token 缓存与自动刷新，含 Evals
 - [x] **hivo-acl**（微服务）— 授权 CRUD、`/check` DENY 优先裁决、通配符匹配、Club 成员展开、审计日志，22 个测试
-- [x] **hivo-club**（微服务）— Club CRUD、成员管理、邀请链接、Club 与成员 profile 修改，45 个测试
-- [x] **hivo-club**（Skill）— `create.py`、`info.py`、`members.py`、`invite.py`、`join.py`、`leave.py`、`my_clubs.py`、`update_club.py`、`update_me.py`，含 Evals
+- [x] **hivo-club**（微服务）— Club CRUD、成员管理、邀请链接、Club 与成员 profile 修改，52 个测试
+- [x] **hivo-club**（Skill）— `create.py`、`info.py`、`members.py`、`invite.py`、`join.py`、`leave.py`、`my_clubs.py`、`update_club.py`、`update_me.py`、`list_invite_links.py`、`revoke_invite_link.py`，含 Evals
 - [x] **hivo-drop**（微服务）— 上传、下载、删除、列表、visibility 控制、公开分享、ACL 集成、严格 CSP，26 个测试
 - [x] **hivo-drop**（Skill）— `upload.py`、`download.py`、`delete.py`、`list.py`、`share.py`，含 Evals
 
