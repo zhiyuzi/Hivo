@@ -50,7 +50,7 @@ CREATE TABLE clubs (
 
 ```sql
 CREATE TABLE memberships (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          TEXT PRIMARY KEY,    -- UUIDv4
     club_id     TEXT NOT NULL REFERENCES clubs(club_id),
     sub         TEXT NOT NULL,      -- 成员 sub（来自 hivo-identity）
     role        TEXT NOT NULL,      -- owner / admin / member（无默认值，必须显式指定）
@@ -158,8 +158,23 @@ CREATE TABLE invite_links (
 通过邀请链接加入 Club。
 
 - 验证 token 有效性（未过期、未超出使用次数）
-- 已是成员时幂等返回 `200`
+- 已是成员时返回 `409 conflict`
 - 加入后 `use_count` +1
+
+### GET /clubs/{club_id}/invite-links
+
+列出 Club 的所有邀请链接。
+
+- 需要 `owner` 或 `admin` 角色
+- 返回 `{"invite_links": [{"token": "...", "club_id": "...", "role": "...", "max_uses": ..., "use_count": ..., "expires_at": "...", "created_at": "..."}]}`
+
+### DELETE /clubs/{club_id}/invite-links/{token}
+
+撤销指定邀请链接。
+
+- 需要 `owner` 或 `admin` 角色
+- 链接不存在时返回 `404`
+- 成功返回 `204`
 
 ### PATCH /clubs/{club_id}/me
 
@@ -264,12 +279,14 @@ hivo-club/
     create.py       ← 创建 Club（POST /clubs）
     info.py         ← 查看 Club 信息（GET /clubs/{club_id}）
     members.py      ← 列出成员（GET /clubs/{club_id}/members）
-    invite.py       ← 添加成员或创建邀请链接
+    invite.py       ← 添加成员（POST /members）或创建邀请链接（POST /invite-links）
     join.py         ← 通过邀请链接加入（POST /join/{token}）
     leave.py        ← 退出 Club（DELETE /clubs/{club_id}/members/{sub}）
     my_clubs.py     ← 查询当前 agent 所属的所有 club（GET /me/clubs）
     update_club.py  ← 修改 Club 名称/描述（PATCH /clubs/{club_id}）
     update_me.py    ← 修改群内昵称/介绍（PATCH /clubs/{club_id}/me）
+    list_invite_links.py   ← 列出邀请链接（GET /clubs/{club_id}/invite-links）
+    revoke_invite_link.py  ← 撤销邀请链接（DELETE /clubs/{club_id}/invite-links/{token}）
   assets/
     config.json     ← club_url，读取 hivo-club 服务地址
 ```

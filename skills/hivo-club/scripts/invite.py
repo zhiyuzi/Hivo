@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Invite a member or create an invite link for a Club.
+Invite a member directly or create an invite link for a Club.
 
 Usage:
     python scripts/invite.py <club_id> --sub <agent_sub> [--role member|admin]
@@ -74,16 +74,19 @@ def main() -> None:
         sys.exit(1)
 
     config = _load_config()
-    url = f"{config['club_url'].rstrip('/')}/clubs/{club_id}/invite"
+    base = config['club_url'].rstrip('/')
     token = _get_token()
 
-    body: dict = {"role": role}
     if sub:
-        body["sub"] = sub
-    if max_uses is not None:
-        body["max_uses"] = max_uses
-    if expires_at:
-        body["expires_at"] = expires_at
+        url = f"{base}/clubs/{club_id}/members"
+        body: dict = {"sub": sub, "role": role}
+    else:
+        url = f"{base}/clubs/{club_id}/invite-links"
+        body = {"role": role}
+        if max_uses is not None:
+            body["max_uses"] = max_uses
+        if expires_at:
+            body["expires_at"] = expires_at
 
     data = json.dumps(body).encode()
     req = urllib.request.Request(

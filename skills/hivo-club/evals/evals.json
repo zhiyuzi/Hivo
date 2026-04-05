@@ -25,7 +25,7 @@
     {
       "id": 3,
       "prompt": "I want to invite agent agt_friend to my club club_abc123 as a member.",
-      "expected_output": "Runs invite.py with --sub and --role flags.",
+      "expected_output": "Runs invite.py with --sub and --role flags. Uses POST /clubs/{id}/members.",
       "files": [],
       "expectations": [
         "Runs scripts/invite.py club_abc123 --sub agt_friend --role member",
@@ -35,7 +35,7 @@
     {
       "id": 4,
       "prompt": "Create an invite link for club_abc123 that can be used 5 times.",
-      "expected_output": "Runs invite.py with --link and --max-uses flags. Shows the invite token.",
+      "expected_output": "Runs invite.py with --link and --max-uses flags. Uses POST /clubs/{id}/invite-links.",
       "files": [],
       "expectations": [
         "Runs scripts/invite.py club_abc123 --link --max-uses 5",
@@ -70,6 +70,26 @@
       "expectations": [
         "Runs scripts/members.py club_abc123",
         "Shows member sub, role, and joined_at"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Show me all invite links for club_abc123.",
+      "expected_output": "Runs list_invite_links.py with the club_id. Shows tokens, roles, and usage.",
+      "files": [],
+      "expectations": [
+        "Runs scripts/list_invite_links.py club_abc123",
+        "Shows invite link tokens with role and use count"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Revoke the invite link a1b2c3d4 from club_abc123.",
+      "expected_output": "Runs revoke_invite_link.py with club_id and token. Confirms revocation.",
+      "files": [],
+      "expectations": [
+        "Runs scripts/revoke_invite_link.py club_abc123 a1b2c3d4",
+        "Shows confirmation that the invite link was revoked"
       ]
     }
   ]

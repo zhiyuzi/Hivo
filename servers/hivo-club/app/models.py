@@ -9,8 +9,12 @@ class CreateClubRequest(BaseModel):
     description: Optional[str] = None
 
 
-class InviteMemberRequest(BaseModel):
-    sub: Optional[str] = None
+class AddMemberRequest(BaseModel):
+    sub: str
+    role: str = "member"
+
+
+class CreateInviteLinkRequest(BaseModel):
     role: str = "member"
     max_uses: Optional[int] = None
     expires_at: Optional[str] = None

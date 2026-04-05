@@ -8,10 +8,11 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from .auth import require_auth
 from .db import get_conn
 from .models import (
+    AddMemberRequest,
     ClubResponse,
     CreateClubRequest,
+    CreateInviteLinkRequest,
     InviteLinkResponse,
-    InviteMemberRequest,
     JoinResponse,
     MemberResponse,
     MyClubEntry,
@@ -132,14 +133,14 @@ def list_members(club_id: str, payload: dict = Depends(require_auth)):
     }
 
 
-# ── Invite Member / Create Invite Link ───────────────────────────────────────
+# ── Add Member (direct) ─────────────────────────────────────────────────────
 
-@router.post("/clubs/{club_id}/invite")
-def invite(club_id: str, req: InviteMemberRequest, payload: dict = Depends(require_auth)):
+@router.post("/clubs/{club_id}/members")
+def add_member(club_id: str, req: AddMemberRequest, payload: dict = Depends(require_auth)):
     sub = payload["sub"]
 
     if req.role not in ("member", "admin"):
-        return _err(422, "validation_error", "Invite role must be 'member' or 'admin'")
+        return _err(422, "validation_error", "Role must be 'member' or 'admin'")
 
     with get_conn() as conn:
         club = conn.execute("SELECT club_id FROM clubs WHERE club_id = ?", (club_id,)).fetchone()
@@ -148,27 +149,43 @@ def invite(club_id: str, req: InviteMemberRequest, payload: dict = Depends(requi
 
         me = _get_membership(conn, club_id, sub)
         if not me or me["role"] not in ("owner", "admin"):
-            return _err(403, "forbidden", "Only owner or admin can invite")
+            return _err(403, "forbidden", "Only owner or admin can add members")
 
-        # Direct invite (sub provided)
-        if req.sub:
-            existing = _get_membership(conn, club_id, req.sub)
-            if existing:
-                return _err(409, "conflict", "User is already a member")
+        existing = _get_membership(conn, club_id, req.sub)
+        if existing:
+            return _err(409, "conflict", "User is already a member")
 
-            membership_id = str(uuid.uuid4())
-            now = _now_iso()
-            conn.execute(
-                "INSERT INTO memberships (id, club_id, sub, role, invited_by, joined_at) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (membership_id, club_id, req.sub, req.role, sub, now),
-            )
-            return JSONResponse(
-                status_code=201,
-                content={"sub": req.sub, "role": req.role},
-            )
+        membership_id = str(uuid.uuid4())
+        now = _now_iso()
+        conn.execute(
+            "INSERT INTO memberships (id, club_id, sub, role, invited_by, joined_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (membership_id, club_id, req.sub, req.role, sub, now),
+        )
+        return JSONResponse(
+            status_code=201,
+            content={"sub": req.sub, "role": req.role},
+        )
 
-        # Create invite link
+
+# ── Create Invite Link ─────────────────────────────────────────────────────
+
+@router.post("/clubs/{club_id}/invite-links")
+def create_invite_link(club_id: str, req: CreateInviteLinkRequest, payload: dict = Depends(require_auth)):
+    sub = payload["sub"]
+
+    if req.role not in ("member", "admin"):
+        return _err(422, "validation_error", "Role must be 'member' or 'admin'")
+
+    with get_conn() as conn:
+        club = conn.execute("SELECT club_id FROM clubs WHERE club_id = ?", (club_id,)).fetchone()
+        if not club:
+            return _err(404, "not_found", "Club not found")
+
+        me = _get_membership(conn, club_id, sub)
+        if not me or me["role"] not in ("owner", "admin"):
+            return _err(403, "forbidden", "Only owner or admin can create invite links")
+
         token = str(uuid.uuid4())
         now = _now_iso()
         conn.execute(
@@ -184,6 +201,62 @@ def invite(club_id: str, req: InviteMemberRequest, payload: dict = Depends(requi
                 expires_at=req.expires_at, created_at=now,
             ).model_dump(),
         )
+
+
+# ── List Invite Links ──────────────────────────────────────────────────────
+
+@router.get("/clubs/{club_id}/invite-links")
+def list_invite_links(club_id: str, payload: dict = Depends(require_auth)):
+    sub = payload["sub"]
+
+    with get_conn() as conn:
+        club = conn.execute("SELECT club_id FROM clubs WHERE club_id = ?", (club_id,)).fetchone()
+        if not club:
+            return _err(404, "not_found", "Club not found")
+
+        me = _get_membership(conn, club_id, sub)
+        if not me or me["role"] not in ("owner", "admin"):
+            return _err(403, "forbidden", "Only owner or admin can view invite links")
+
+        rows = conn.execute(
+            "SELECT token, club_id, role, max_uses, use_count, expires_at, created_at "
+            "FROM invite_links WHERE club_id = ? ORDER BY created_at",
+            (club_id,),
+        ).fetchall()
+
+    return {
+        "invite_links": [
+            InviteLinkResponse(**dict(r)).model_dump()
+            for r in rows
+        ]
+    }
+
+
+# ── Revoke Invite Link ─────────────────────────────────────────────────────
+
+@router.delete("/clubs/{club_id}/invite-links/{token}")
+def revoke_invite_link(club_id: str, token: str, payload: dict = Depends(require_auth)):
+    sub = payload["sub"]
+
+    with get_conn() as conn:
+        club = conn.execute("SELECT club_id FROM clubs WHERE club_id = ?", (club_id,)).fetchone()
+        if not club:
+            return _err(404, "not_found", "Club not found")
+
+        me = _get_membership(conn, club_id, sub)
+        if not me or me["role"] not in ("owner", "admin"):
+            return _err(403, "forbidden", "Only owner or admin can revoke invite links")
+
+        link = conn.execute(
+            "SELECT token FROM invite_links WHERE token = ? AND club_id = ?",
+            (token, club_id),
+        ).fetchone()
+        if not link:
+            return _err(404, "not_found", "Invite link not found")
+
+        conn.execute("DELETE FROM invite_links WHERE token = ?", (token,))
+
+    return Response(status_code=204)
 
 
 # ── Join via Invite Link ─────────────────────────────────────────────────────

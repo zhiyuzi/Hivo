@@ -86,7 +86,7 @@ def test_list_members_non_member_forbidden(client):
 def test_invite_member(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    r = client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_new", "role": "member"}, headers=auth())
+    r = client.post(f"/clubs/{club_id}/members", json={"sub": "agt_new", "role": "member"}, headers=auth())
     assert r.status_code == 201
     assert r.json()["sub"] == "agt_new"
 
@@ -99,8 +99,8 @@ def test_invite_member(client):
 def test_invite_duplicate(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_dup", "role": "member"}, headers=auth())
-    r = client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_dup", "role": "member"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_dup", "role": "member"}, headers=auth())
+    r = client.post(f"/clubs/{club_id}/members", json={"sub": "agt_dup", "role": "member"}, headers=auth())
     assert r.status_code == 409
 
 
@@ -108,16 +108,16 @@ def test_invite_by_non_admin_forbidden(client):
     body = _create_club(client)
     club_id = body["club_id"]
     # Add a regular member
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_regular", "role": "member"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_regular", "role": "member"}, headers=auth())
     # Regular member tries to invite
     regular_token = make_token(sub="agt_regular")
-    r = client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_x", "role": "member"}, headers=auth(regular_token))
+    r = client.post(f"/clubs/{club_id}/members", json={"sub": "agt_x", "role": "member"}, headers=auth(regular_token))
     assert r.status_code == 403
 
 
 def test_invite_invalid_role(client):
     body = _create_club(client)
-    r = client.post(f"/clubs/{body['club_id']}/invite", json={"sub": "agt_x", "role": "owner"}, headers=auth())
+    r = client.post(f"/clubs/{body['club_id']}/members", json={"sub": "agt_x", "role": "owner"}, headers=auth())
     assert r.status_code == 422
 
 
@@ -126,7 +126,7 @@ def test_invite_invalid_role(client):
 def test_create_invite_link(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    r = client.post(f"/clubs/{club_id}/invite", json={"max_uses": 5}, headers=auth())
+    r = client.post(f"/clubs/{club_id}/invite-links", json={"max_uses": 5}, headers=auth())
     assert r.status_code == 201
     link = r.json()
     assert "token" in link
@@ -136,7 +136,7 @@ def test_create_invite_link(client):
 def test_join_via_link(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    link = client.post(f"/clubs/{club_id}/invite", json={}, headers=auth()).json()
+    link = client.post(f"/clubs/{club_id}/invite-links", json={}, headers=auth()).json()
 
     joiner_token = make_token(sub="agt_joiner")
     r = client.post(f"/join/{link['token']}", headers=auth(joiner_token))
@@ -148,7 +148,7 @@ def test_join_via_link(client):
 def test_join_via_link_already_member(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    link = client.post(f"/clubs/{club_id}/invite", json={}, headers=auth()).json()
+    link = client.post(f"/clubs/{club_id}/invite-links", json={}, headers=auth()).json()
 
     joiner_token = make_token(sub="agt_joiner2")
     client.post(f"/join/{link['token']}", headers=auth(joiner_token))
@@ -160,7 +160,7 @@ def test_join_via_link_expired(client):
     body = _create_club(client)
     club_id = body["club_id"]
     r = client.post(
-        f"/clubs/{club_id}/invite",
+        f"/clubs/{club_id}/invite-links",
         json={"expires_at": "2020-01-01T00:00:00Z"},
         headers=auth(),
     )
@@ -174,7 +174,7 @@ def test_join_via_link_expired(client):
 def test_join_via_link_max_uses(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    link = client.post(f"/clubs/{club_id}/invite", json={"max_uses": 1}, headers=auth()).json()
+    link = client.post(f"/clubs/{club_id}/invite-links", json={"max_uses": 1}, headers=auth()).json()
 
     j1 = make_token(sub="agt_j1")
     client.post(f"/join/{link['token']}", headers=auth(j1))
@@ -190,12 +190,88 @@ def test_join_invalid_token(client):
     assert r.status_code == 404
 
 
+# ── List Invite Links ─────────────────────────────────────────────────────────
+
+def test_list_invite_links(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client.post(f"/clubs/{club_id}/invite-links", json={"max_uses": 3}, headers=auth())
+    client.post(f"/clubs/{club_id}/invite-links", json={"max_uses": 10}, headers=auth())
+
+    r = client.get(f"/clubs/{club_id}/invite-links", headers=auth())
+    assert r.status_code == 200
+    links = r.json()["invite_links"]
+    assert len(links) == 2
+
+
+def test_list_invite_links_empty(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    r = client.get(f"/clubs/{club_id}/invite-links", headers=auth())
+    assert r.status_code == 200
+    assert r.json()["invite_links"] == []
+
+
+def test_list_invite_links_member_forbidden(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_peeker", "role": "member"}, headers=auth())
+    peeker_token = make_token(sub="agt_peeker")
+    r = client.get(f"/clubs/{club_id}/invite-links", headers=auth(peeker_token))
+    assert r.status_code == 403
+
+
+# ── Revoke Invite Link ────────────────────────────────────────────────────────
+
+def test_revoke_invite_link(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    link = client.post(f"/clubs/{club_id}/invite-links", json={}, headers=auth()).json()
+
+    r = client.delete(f"/clubs/{club_id}/invite-links/{link['token']}", headers=auth())
+    assert r.status_code == 204
+
+    # Verify link is gone
+    r = client.get(f"/clubs/{club_id}/invite-links", headers=auth())
+    assert len(r.json()["invite_links"]) == 0
+
+
+def test_revoke_invite_link_not_found(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    r = client.delete(f"/clubs/{club_id}/invite-links/nonexistent", headers=auth())
+    assert r.status_code == 404
+
+
+def test_revoke_invite_link_member_forbidden(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    link = client.post(f"/clubs/{club_id}/invite-links", json={}, headers=auth()).json()
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_revoker", "role": "member"}, headers=auth())
+
+    revoker_token = make_token(sub="agt_revoker")
+    r = client.delete(f"/clubs/{club_id}/invite-links/{link['token']}", headers=auth(revoker_token))
+    assert r.status_code == 403
+
+
+def test_revoked_link_cannot_be_used(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    link = client.post(f"/clubs/{club_id}/invite-links", json={}, headers=auth()).json()
+
+    client.delete(f"/clubs/{club_id}/invite-links/{link['token']}", headers=auth())
+
+    joiner_token = make_token(sub="agt_too_late")
+    r = client.post(f"/join/{link['token']}", headers=auth(joiner_token))
+    assert r.status_code == 404
+
+
 # ── Leave / Remove Member ─────────────────────────────────────────────────────
 
 def test_leave_club(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_leaver", "role": "member"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_leaver", "role": "member"}, headers=auth())
 
     leaver_token = make_token(sub="agt_leaver")
     r = client.delete(f"/clubs/{club_id}/members/agt_leaver", headers=auth(leaver_token))
@@ -217,9 +293,9 @@ def test_admin_remove_member(client):
     body = _create_club(client)
     club_id = body["club_id"]
     # Add admin
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_admin", "role": "admin"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_admin", "role": "admin"}, headers=auth())
     # Add member
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_target", "role": "member"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_target", "role": "member"}, headers=auth())
 
     admin_token = make_token(sub="agt_admin")
     r = client.delete(f"/clubs/{club_id}/members/agt_target", headers=auth(admin_token))
@@ -229,7 +305,7 @@ def test_admin_remove_member(client):
 def test_admin_cannot_remove_owner(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_admin2", "role": "admin"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_admin2", "role": "admin"}, headers=auth())
 
     admin_token = make_token(sub="agt_admin2")
     r = client.delete(f"/clubs/{club_id}/members/{SUB}", headers=auth(admin_token))
@@ -239,8 +315,8 @@ def test_admin_cannot_remove_owner(client):
 def test_member_cannot_remove_other(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_m1", "role": "member"}, headers=auth())
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_m2", "role": "member"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_m1", "role": "member"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_m2", "role": "member"}, headers=auth())
 
     m1_token = make_token(sub="agt_m1")
     r = client.delete(f"/clubs/{club_id}/members/agt_m2", headers=auth(m1_token))
@@ -252,7 +328,7 @@ def test_member_cannot_remove_other(client):
 def test_owner_update_role(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_promote", "role": "member"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_promote", "role": "member"}, headers=auth())
 
     r = client.patch(f"/clubs/{club_id}/members/agt_promote", json={"role": "admin"}, headers=auth())
     assert r.status_code == 200
@@ -262,8 +338,8 @@ def test_owner_update_role(client):
 def test_admin_update_member_role(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_adm", "role": "admin"}, headers=auth())
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_mem", "role": "member"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_adm", "role": "admin"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_mem", "role": "member"}, headers=auth())
 
     adm_token = make_token(sub="agt_adm")
     r = client.patch(f"/clubs/{club_id}/members/agt_mem", json={"role": "admin"}, headers=auth(adm_token))
@@ -273,7 +349,7 @@ def test_admin_update_member_role(client):
 def test_admin_cannot_change_owner_role(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_adm3", "role": "admin"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_adm3", "role": "admin"}, headers=auth())
 
     adm_token = make_token(sub="agt_adm3")
     r = client.patch(f"/clubs/{club_id}/members/{SUB}", json={"role": "member"}, headers=auth(adm_token))
@@ -283,7 +359,7 @@ def test_admin_cannot_change_owner_role(client):
 def test_cannot_set_role_to_owner(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_sneaky", "role": "member"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_sneaky", "role": "member"}, headers=auth())
 
     r = client.patch(f"/clubs/{club_id}/members/agt_sneaky", json={"role": "owner"}, headers=auth())
     assert r.status_code == 422
@@ -305,7 +381,7 @@ def test_dissolve_club(client):
 def test_non_owner_cannot_dissolve(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_adm4", "role": "admin"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_adm4", "role": "admin"}, headers=auth())
 
     adm_token = make_token(sub="agt_adm4")
     r = client.delete(f"/clubs/{club_id}", headers=auth(adm_token))
@@ -350,7 +426,7 @@ def test_update_club_empty_body(client):
 def test_update_club_admin_allowed(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_adm5", "role": "admin"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_adm5", "role": "admin"}, headers=auth())
 
     adm_token = make_token(sub="agt_adm5")
     r = client.patch(f"/clubs/{club_id}", json={"name": "Admin Updated"}, headers=auth(adm_token))
@@ -361,7 +437,7 @@ def test_update_club_admin_allowed(client):
 def test_update_club_member_forbidden(client):
     body = _create_club(client)
     club_id = body["club_id"]
-    client.post(f"/clubs/{club_id}/invite", json={"sub": "agt_mem5", "role": "member"}, headers=auth())
+    client.post(f"/clubs/{club_id}/members", json={"sub": "agt_mem5", "role": "member"}, headers=auth())
 
     mem_token = make_token(sub="agt_mem5")
     r = client.patch(f"/clubs/{club_id}", json={"name": "Nope"}, headers=auth(mem_token))
