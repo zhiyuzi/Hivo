@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide walks through deploying all three Hivo services on a Ubuntu server.
+This guide walks through deploying all five Hivo services on a Ubuntu server.
 
 **Assumptions used throughout this guide** — replace with your own values:
 
@@ -8,6 +8,8 @@ This guide walks through deploying all three Hivo services on a Ubuntu server.
 |-------------|---------------|------------|
 | `example.com` | your root domain | hivo-web |
 | `id.example.com` | identity subdomain | hivo-identity |
+| `acl.example.com` | acl subdomain | hivo-acl |
+| `club.example.com` | club subdomain | hivo-club |
 | `drop.example.com` | drop subdomain | hivo-drop |
 | `YOUR_SERVER_USER` | `ubuntu` | SSH login user |
 
@@ -27,6 +29,8 @@ This guide walks through deploying all three Hivo services on a Ubuntu server.
 | hivo-web | 8000 |
 | hivo-identity | 8001 |
 | hivo-drop | 8002 |
+| hivo-club | 8003 |
+| hivo-acl | 8004 |
 
 Adjust if any ports are already in use on your server (`sudo ss -tlnp`).
 
@@ -54,6 +58,8 @@ git clone https://github.com/zhiyuzi/Hivo.git /opt/hivo
 
 ```bash
 cd /opt/hivo/servers/hivo-identity && uv sync
+cd /opt/hivo/servers/hivo-acl       && uv sync
+cd /opt/hivo/servers/hivo-club      && uv sync
 cd /opt/hivo/servers/hivo-drop      && uv sync
 cd /opt/hivo/servers/hivo-web       && uv sync
 ```
@@ -62,6 +68,8 @@ cd /opt/hivo/servers/hivo-web       && uv sync
 
 ```bash
 mkdir -p /opt/hivo/servers/hivo-identity/data
+mkdir -p /opt/hivo/servers/hivo-acl/data
+mkdir -p /opt/hivo/servers/hivo-club/data
 mkdir -p /opt/hivo/servers/hivo-drop/data
 ```
 
@@ -69,6 +77,8 @@ mkdir -p /opt/hivo/servers/hivo-drop/data
 
 ```bash
 cp /opt/hivo/servers/hivo-identity/.env.example /opt/hivo/servers/hivo-identity/.env
+cp /opt/hivo/servers/hivo-acl/.env.example       /opt/hivo/servers/hivo-acl/.env
+cp /opt/hivo/servers/hivo-club/.env.example      /opt/hivo/servers/hivo-club/.env
 cp /opt/hivo/servers/hivo-drop/.env.example      /opt/hivo/servers/hivo-drop/.env
 cp /opt/hivo/servers/hivo-web/.env.example       /opt/hivo/servers/hivo-web/.env
 ```
@@ -76,6 +86,8 @@ cp /opt/hivo/servers/hivo-web/.env.example       /opt/hivo/servers/hivo-web/.env
 Edit each file and fill in your values. Key changes:
 
 - `hivo-identity/.env`: set `ISSUER_URL=https://id.example.com`
+- `hivo-acl/.env`: set `TRUSTED_ISSUERS=https://id.example.com`
+- `hivo-club/.env`: set `TRUSTED_ISSUERS=https://id.example.com`
 - `hivo-drop/.env`: set `TRUSTED_ISSUERS=https://id.example.com` and fill in R2 credentials
 - `hivo-web/.env`: set `REPO_URL` to your fork URL if applicable
 
@@ -115,6 +127,40 @@ EnvironmentFile=/opt/hivo/servers/hivo-drop/.env
 WantedBy=multi-user.target
 ```
 
+**`/etc/systemd/system/hivo-club.service`**:
+```ini
+[Unit]
+Description=hivo-club
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/hivo/servers/hivo-club
+ExecStart=/opt/hivo/servers/hivo-club/.venv/bin/gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 2 --bind 127.0.0.1:8003
+Restart=always
+User=YOUR_SERVER_USER
+EnvironmentFile=/opt/hivo/servers/hivo-club/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**`/etc/systemd/system/hivo-acl.service`**:
+```ini
+[Unit]
+Description=hivo-acl
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/hivo/servers/hivo-acl
+ExecStart=/opt/hivo/servers/hivo-acl/.venv/bin/gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 2 --bind 127.0.0.1:8004
+Restart=always
+User=YOUR_SERVER_USER
+EnvironmentFile=/opt/hivo/servers/hivo-acl/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
 **`/etc/systemd/system/hivo-web.service`**:
 ```ini
 [Unit]
@@ -135,7 +181,7 @@ WantedBy=multi-user.target
 Enable and start:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now hivo-identity hivo-drop hivo-web
+sudo systemctl enable --now hivo-identity hivo-acl hivo-club hivo-drop hivo-web
 ```
 
 ### 7. Configure nginx
@@ -171,6 +217,26 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 }
+
+server {
+    listen 80;
+    server_name club.example.com;
+    location / {
+        proxy_pass http://127.0.0.1:8003;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+server {
+    listen 80;
+    server_name acl.example.com;
+    location / {
+        proxy_pass http://127.0.0.1:8004;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
 ```
 
 ```bash
@@ -181,7 +247,7 @@ sudo nginx -t && sudo systemctl reload nginx
 ### 8. Issue SSL certificates
 
 ```bash
-sudo certbot --nginx -d example.com -d id.example.com -d drop.example.com
+sudo certbot --nginx -d example.com -d id.example.com -d acl.example.com -d club.example.com -d drop.example.com
 ```
 
 ### 9. Verify
@@ -189,10 +255,12 @@ sudo certbot --nginx -d example.com -d id.example.com -d drop.example.com
 ```bash
 curl https://example.com/health
 curl https://id.example.com/health
+curl https://acl.example.com/health
+curl https://club.example.com/health
 curl https://drop.example.com/health
 ```
 
-All three should return `{"status":"ok"}`.
+All five should return `{"status":"ok"}`.
 
 ---
 
@@ -206,7 +274,7 @@ cd servers/hivo-identity && uv sync
 cd servers/hivo-drop      && uv sync
 cd servers/hivo-web       && uv sync
 
-sudo systemctl restart hivo-identity hivo-drop hivo-web
+sudo systemctl restart hivo-identity hivo-acl hivo-club hivo-drop hivo-web
 ```
 
 ---

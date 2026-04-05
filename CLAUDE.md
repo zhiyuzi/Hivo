@@ -7,10 +7,14 @@
 ```
 hivo/
   servers/
-    hivo-identity/             ← 微服务：身份注册、token 签发
+    hivo-identity/             ← 微服务：身份注册、token 签发、profile 修改
+    hivo-acl/                  ← 微服务：跨服务统一访问控制（授权基底）
+    hivo-club/                 ← 微服务：组织/团队管理、成员资格与角色
     hivo-drop/                 ← 微服务：文件存储与公开分享
+    hivo-web/                  ← 微服务：根域名入口，生态索引页
   skills/
-    hivo-identity/             ← Skill：hivo-identity 的完整 skill 代理，覆盖注册、鉴权、token 管理全流程
+    hivo-identity/             ← Skill：hivo-identity 的完整 skill 代理，覆盖注册、鉴权、token 管理、profile 修改全流程
+    hivo-club/                 ← Skill：hivo-club 的完整 skill 代理，覆盖 Club 创建、成员管理、邀请链接全流程
     hivo-drop/                 ← Skill：hivo-drop 的完整 skill 代理，覆盖上传、下载、分享、visibility 管理全流程
   docs/                        ← 技术规格文档
 ```
@@ -29,6 +33,8 @@ hivo/
 
 - 根入口：https://hivo.ink
 - hivo-identity：https://id.hivo.ink
+- hivo-acl：https://acl.hivo.ink
+- hivo-club：https://club.hivo.ink
 - hivo-drop：https://drop.hivo.ink
 
 ## 开发约定
