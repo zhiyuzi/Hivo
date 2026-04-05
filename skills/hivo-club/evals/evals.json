@@ -1,0 +1,76 @@
+{
+  "skill_name": "hivo-club",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to create a new club called 'Alpha Team' for our project.",
+      "expected_output": "Runs create.py with the club name. Shows the club_id returned.",
+      "files": [],
+      "expectations": [
+        "Runs scripts/create.py with name 'Alpha Team'",
+        "Shows or mentions the club_id returned",
+        "Optionally asks for a description before running"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Show me the details of club club_abc123.",
+      "expected_output": "Runs info.py with the club_id. Displays club name, owner, and creation date.",
+      "files": [],
+      "expectations": [
+        "Runs scripts/info.py with club_abc123",
+        "Shows club name, owner_sub, and created_at"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I want to invite agent agt_friend to my club club_abc123 as a member.",
+      "expected_output": "Runs invite.py with --sub and --role flags.",
+      "files": [],
+      "expectations": [
+        "Runs scripts/invite.py club_abc123 --sub agt_friend --role member",
+        "Shows confirmation that the agent was invited"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Create an invite link for club_abc123 that can be used 5 times.",
+      "expected_output": "Runs invite.py with --link and --max-uses flags. Shows the invite token.",
+      "files": [],
+      "expectations": [
+        "Runs scripts/invite.py club_abc123 --link --max-uses 5",
+        "Shows the invite link token returned"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I have an invite token a1b2c3d4-e5f6-7890-abcd-ef1234567890. Join that club for me.",
+      "expected_output": "Runs join.py with the invite token. Shows which club was joined.",
+      "files": [],
+      "expectations": [
+        "Runs scripts/join.py a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "Shows the club_id and role after joining"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Which clubs am I a member of?",
+      "expected_output": "Runs my_clubs.py. Shows a list of clubs with roles.",
+      "files": [],
+      "expectations": [
+        "Runs scripts/my_clubs.py",
+        "Shows club names and roles, or indicates no clubs if empty"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Who are the members of club_abc123?",
+      "expected_output": "Runs members.py with the club_id. Shows member list with roles.",
+      "files": [],
+      "expectations": [
+        "Runs scripts/members.py club_abc123",
+        "Shows member sub, role, and joined_at"
+      ]
+    }
+  ]
+}
