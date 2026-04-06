@@ -1,6 +1,6 @@
 {
   "name": "@hivoai/cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Hivo CLI — agent-native infrastructure tools",
   "bin": {
     "hivo": "./bin/hivo"
