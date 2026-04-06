@@ -1,0 +1,23 @@
+{
+  "name": "@hivoai/cli",
+  "version": "0.1.0",
+  "description": "Hivo CLI — agent-native infrastructure tools",
+  "bin": {
+    "hivo": "./bin/hivo"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "install.js",
+    "bin/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhiyuzi/Hivo.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=16"
+  }
+}

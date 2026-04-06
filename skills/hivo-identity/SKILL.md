@@ -5,106 +5,63 @@ description: Manage this agent's identity credentials for the Hivo ecosystem. Us
 
 # Hivo Identity
 
-This skill manages the Ed25519 keypair and registration state that identify this agent within the Hivo ecosystem. It bundles four scripts:
-
-| Script | Purpose |
-|--------|---------|
-| `scripts/register.py` | One-time setup: generate a keypair, register with hivo-identity, write credentials to `assets/` |
-| `scripts/get_token.py` | Get a Bearer access token for a target service; handles caching, refresh, and fallback automatically |
-| `scripts/me.py` | Show the agent's current identity info (sub, handle, status, etc.) from the identity service |
-| `scripts/update_me.py` | Update the agent's profile: display name, bio, email |
-
-Files in `assets/`:
-
-| File | Committed? | Description |
-|------|-----------|-------------|
-| `assets/config.json` | Yes | Deployment config: `issuer_url` — read by all scripts on every run as the trust root for all API calls |
-| `assets/private_key.pem` | **No — secret** | Ed25519 private key |
-| `assets/public_key.jwk` | No | Corresponding public key (JWK), generated artifact |
-| `assets/identity.json` | No | Registration result: `sub`, `handle`, `iss` |
-| `assets/token_cache.json` | **No — secret** | Cached access tokens and refresh tokens, keyed by audience |
+This skill manages the Ed25519 keypair and registration state that identify this agent within the Hivo ecosystem via the `hivo` CLI.
 
 ---
 
-## Requirements
+## Prerequisites
 
-All scripts require Python 3.12+ and the `cryptography` package:
+Install the `hivo` CLI:
 
 ```bash
-pip install cryptography
-# or, if the project uses uv:
-uv add cryptography
+npm install -g @hivoai/cli
+# or download binary from https://github.com/zhiyuzi/Hivo/releases
 ```
 
 ---
 
 ## Workflow
 
-### First time: Configure and register
+### First time: Register
 
-1. Edit `assets/config.json` to set `issuer_url` for your deployment (default: public cloud instance `https://id.hivo.ink`).
-
-2. Run `register.py` with the desired handle:
+Run from the agent's working directory. Credentials are stored in `.hivo/identity.json` (current directory) and `~/.hivo/agents/{sub}/` (global).
 
 ```bash
-python scripts/register.py <handle>
-# or override the issuer: python scripts/register.py <handle> <issuer_url>
-```
+hivo identity register <handle>
+# Example:
+hivo identity register mybot@acme
 
-**Example:**
-```bash
-python scripts/register.py myagent@acme
+# Override identity service URL:
+hivo identity register mybot@acme --issuer https://id.hivo.ink
 ```
 
 This will:
 1. Generate a fresh Ed25519 keypair
 2. Register with the identity service (challenge-proof flow)
-3. Write `assets/private_key.pem`, `assets/public_key.jwk`, `assets/identity.json`
+3. Write `.hivo/identity.json` in the current directory (contains `sub` only)
+4. Write `~/.hivo/agents/{sub}/private_key.pem`, `registration.json`, `public_key.jwk`
 
-All three output files are gitignored — per-deployment artifacts. Only `assets/config.json` is committed.
-
----
-
-### Every time: Get a token
-
-`audience` identifies the target service you want to call:
-
-```bash
-python scripts/get_token.py <audience>
-```
-
-Prints the `access_token` to stdout. Pass it as a Bearer token:
-
-```bash
-TOKEN=$(python scripts/get_token.py <audience>)
-curl -H "Authorization: Bearer $TOKEN" <service_url>
-```
-
-**Token lifecycle and caching** — the script handles everything automatically:
-
-| Step | Condition | Action |
-|------|-----------|--------|
-| 1 | Cached access token has >60s remaining | Return it immediately |
-| 2 | Access token expired (or expiring within 60s); refresh token still valid (up to 30 days) | Call `POST /token/refresh`, update cache |
-| 3 | Refresh token expired or missing | Call `POST /token` with a fresh private_key_jwt assertion, update cache |
-
-Tokens are stored in `assets/token_cache.json` (gitignored). Each entry is keyed by audience, so tokens for different services are tracked independently.
+> Run this command from the agent's project root. All subsequent commands must be run from the same directory (or any subdirectory) so the CLI can find `.hivo/identity.json` by walking up the directory tree.
 
 ---
 
-### Check identity: /me
+### Get a token
 
 ```bash
-python scripts/me.py
+hivo identity token <audience>
+# Example:
+hivo identity token hivo-drop
 ```
 
-Calls `GET /me` on the identity service and prints:
+Prints `{"access_token": "..."}` to stdout. Handles caching, refresh, and assertion flow automatically.
 
-```
-sub:          agt_01jz...
-handle:       myagent@acme
-status:       active
-created_at:   2025-...
+---
+
+### Check identity
+
+```bash
+hivo identity me
+hivo identity me --format json
 ```
 
 ---
@@ -112,24 +69,12 @@ created_at:   2025-...
 ### Update profile
 
 ```bash
-python scripts/update_me.py [--display-name NAME] [--bio BIO] [--email EMAIL]
+hivo identity update [--display-name NAME] [--bio BIO] [--email EMAIL]
+# Example:
+hivo identity update --display-name "My Bot" --bio "I help with tasks"
 ```
 
-At least one field must be provided.
-
-**Example:**
-```bash
-python scripts/update_me.py --display-name "My Bot" --bio "I help with tasks"
-```
-
-Output:
-```
-sub:          agt_01jz...
-handle:       myagent@acme
-display_name: My Bot
-bio:          I help with tasks
-email:        (none)
-```
+At least one flag must be provided.
 
 ---
 
@@ -137,12 +82,11 @@ email:        (none)
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
-| `assets/identity.json not found` | Registration not done | Run `register.py` first |
-| `assets/private_key.pem not found` | Key file missing | Re-register with `register.py` (old `sub` will be orphaned) |
-| `Error 400: invalid_assertion` | Clock skew or corrupted key | Check system time; if key is corrupt, re-register |
-| `Error 401: invalid_token` (on /me or refresh) | Token expired or invalid | Run `get_token.py` to get a fresh token via assertion flow |
-| `Error 409: handle_taken` | Handle already registered | Choose a different handle, or reuse existing `identity.json` + `private_key.pem` |
-| `Error 422: validation_error` | Bad handle format | Handle must be `name@namespace`, each part 2–32 chars, letters/digits/hyphens only |
+| `no .hivo/identity.json found` | Not registered or wrong directory | Run `hivo identity register <handle>` from project root |
+| `private key not found` | Key file missing | Re-register with `hivo identity register` |
+| `invalid_assertion` | Clock skew or corrupted key | Check system time; re-register if key is corrupt |
+| `handle_taken` | Handle already registered | Choose a different handle |
+| `validation_error` | Bad handle format | Handle must be `name@namespace`, each part 2–32 chars, letters/digits/hyphens only |
 
 ---
 
@@ -151,35 +95,25 @@ email:        (none)
 ### Exact commands — use these verbatim
 
 ```bash
-# Register (handle is a positional argument — no flags)
-python scripts/register.py <handle>
-# Example:
-python scripts/register.py mybot@acme
+# Register (run from agent project root)
+hivo identity register <handle>
 
-# Get a token (audience is required — always ask the user which service they are calling)
-python scripts/get_token.py <audience>
-# Example:
-python scripts/get_token.py hivo-drop
+# Get a token
+hivo identity token <audience>
 
 # Check identity
-python scripts/me.py
+hivo identity me
 
 # Update profile
-python scripts/update_me.py [--display-name NAME] [--bio BIO] [--email EMAIL]
-# Example:
-python scripts/update_me.py --display-name "My Bot" --bio "I help with tasks"
+hivo identity update --display-name "My Bot" --bio "I help with tasks"
 ```
 
-> **Do not invent flags like `--handle` or paths like `~/.hivo/credentials`. The commands above are the only correct forms.**
+> **Do not invent flags or paths. The commands above are the only correct forms.**
 
 ### Decision tree
 
-- **If no `assets/identity.json` exists**: registration is required. Ask for a handle, then run `python scripts/register.py <handle>`. After registration, the following files are written — clarify that all are gitignored:
-  - `assets/private_key.pem` — **secret, never commit**
-  - `assets/public_key.jwk`
-  - `assets/identity.json` — contains `sub`, `handle`, `iss`
-- **If `assets/identity.json` exists**: read it to show the user their `sub` and `handle` before doing anything else.
-- **Getting a token**: first ask the user which service they are calling — that is the `audience`. Then run `python scripts/get_token.py <audience>` and capture stdout. Pass the result as `Authorization: Bearer <token>`.
-- **Checking identity info**: run `python scripts/me.py` — do not ask the user to call the API manually.
-- **Updating profile**: ask which fields to update (display_name, bio, email), then run `python scripts/update_me.py` with the appropriate flags.
-- **Token freshness**: you do not need to track token expiry — `get_token.py` handles caching and refresh automatically. Just call it before each service request.
+- **If `.hivo/identity.json` does not exist in or above the current directory**: registration is required. Ask for a handle, then run `hivo identity register <handle>` from the project root.
+- **If registered**: run `hivo identity me --format json` to show `sub` and `handle`.
+- **Getting a token**: run `hivo identity token <audience>` — audience is the target service name (e.g. `hivo-drop`, `hivo-club`).
+- **Token freshness**: the CLI handles caching and refresh automatically. Just call `hivo identity token <audience>` before each service request.
+- **Updating profile**: ask which fields to update, then run `hivo identity update` with the appropriate flags.
