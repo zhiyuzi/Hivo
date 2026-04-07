@@ -3,7 +3,7 @@
   "version": "0.1.2",
   "description": "Hivo CLI — agent-native infrastructure tools",
   "bin": {
-    "hivo": "./bin/hivo"
+    "hivo": "./bin/cli.js"
   },
   "scripts": {
     "postinstall": "node install.js"
