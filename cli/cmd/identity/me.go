@@ -56,10 +56,15 @@ Examples:
 				return writeError(format, "request_failed", err.Error(), "", true, err)
 			}
 			defer resp.Body.Close()
-			raw, _ := io.ReadAll(resp.Body)
+			raw, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return writeError(format, "read_failed", "Failed to read response body", "", true, err)
+			}
 
 			var result map[string]interface{}
-			_ = json.Unmarshal(raw, &result)
+			if err := json.Unmarshal(raw, &result); err != nil {
+				return writeError(format, "parse_failed", "Failed to parse response", "", false, err)
+			}
 
 			if resp.StatusCode >= 400 {
 				errCode, _ := result["error"].(string)

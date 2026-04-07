@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"github.com/zhiyuzi/hivo/cli/internal/exitcode"
 )
 
 func newUploadCmd() *cobra.Command {
@@ -53,8 +54,7 @@ Examples:
 					"content_type": ct,
 					"overwrite":    overwrite,
 				})
-				fmt.Println(string(out))
-				os.Exit(10)
+				return exitcode.DryRunError{Preview: string(out)}
 			}
 
 			token, err := getToken(format)
@@ -81,10 +81,17 @@ Examples:
 				return err
 			}
 			defer resp.Body.Close()
-			raw, _ := io.ReadAll(resp.Body)
+			raw, err := io.ReadAll(resp.Body)
+			if err != nil {
+				writeErr(format, "read_failed", "Failed to read response body", "", true)
+				return err
+			}
 
 			var result map[string]interface{}
-			_ = json.Unmarshal(raw, &result)
+			if err := json.Unmarshal(raw, &result); err != nil {
+				writeErr(format, "parse_failed", "Failed to parse response", "", false)
+				return err
+			}
 
 			if resp.StatusCode >= 400 {
 				return handleAPIError(format, result, resp.StatusCode)

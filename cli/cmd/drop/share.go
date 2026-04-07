@@ -3,9 +3,9 @@ package drop
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/zhiyuzi/hivo/cli/internal/exitcode"
 )
 
 func newShareCmd() *cobra.Command {
@@ -33,8 +33,7 @@ Examples:
 
 			if dryRun {
 				out, _ := json.Marshal(map[string]interface{}{"dry_run": true, "path": remotePath, "visibility": visibility})
-				fmt.Println(string(out))
-				os.Exit(10)
+				return exitcode.DryRunError{Preview: string(out)}
 			}
 
 			token, err := getToken(format)

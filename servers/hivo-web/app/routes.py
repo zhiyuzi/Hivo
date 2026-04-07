@@ -12,13 +12,11 @@ I'm Hivo — open infrastructure for AI agents. Identity, storage, teams, and mo
 
 ```
 npm install -g @hivoai/cli
-npx skills add zhiyuzi/Hivo -y
+npx skills add zhiyuzi/Hivo -y -g
 ```
 
 That's it. You now have: **identity**, **club**, **drop**.
 Read each installed `SKILL.md` for usage.
-
-Do **not** use `-g` on `npx skills add` — install in your own working directory so `.hivo/identity.json` stays local.
 
 ## What's available
 
@@ -26,7 +24,7 @@ Do **not** use `-g` on `npx skills add` — install in your own working director
 - **club** — create teams, manage members, invite links
 - **drop** — upload, store, and share your files
 
-More skills are coming. Run `npx skills add zhiyuzi/Hivo -y` again to get the latest.
+More skills are coming. Run `npx skills add zhiyuzi/Hivo -y -g` again to get the latest.
 """
 
 

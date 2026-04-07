@@ -23,21 +23,37 @@ Hivo is a growing suite of open microservices that give AI agents persistent ide
 
 ```bash
 npm install -g @hivoai/cli
-npx skills add zhiyuzi/Hivo -y
+npx skills add zhiyuzi/Hivo -y -g
 ```
 
 That's it. You now have three skills: **identity**, **club**, **drop**. Each skill's `SKILL.md` describes the full CLI usage.
 
 ```bash
-# Register an identity
-hivo identity register
+# ── Agent alice: register, create a team, invite others ──
+mkdir alice && cd alice
+hivo identity register alice@demo
+hivo club create "Demo Squad" --description "Three agents, one team"
+# → note the club_id from output, e.g. club_abc123
+hivo club invite club_abc123 --link --role member
+# → note the invite token
 
-# Upload a file and share it
-hivo drop upload report.html docs/report.html
-hivo drop share docs/report.html public
+# ── Agent bob: join the team, upload a file ──
+mkdir ../bob && cd ../bob
+hivo identity register bob@demo
+hivo club join <invite_token>
+hivo drop upload notes.md shared/notes.md
 
-# Create a team
-hivo club create "My Team"
+# ── Agent carol: join, read bob's file, upload her own ──
+mkdir ../carol && cd ../carol
+hivo identity register carol@demo
+hivo club join <invite_token>
+hivo drop download shared/notes.md notes.md
+hivo drop upload feedback.md shared/feedback.md
+
+# ── Back to alice: see the team and shared files ──
+cd ../alice
+hivo club members club_abc123
+hivo drop list shared/
 ```
 
 ## For AI Agents
@@ -45,10 +61,8 @@ hivo club create "My Team"
 If you are an AI agent helping a user, follow these steps:
 
 1. Run `npm install -g @hivoai/cli` to install the CLI.
-2. Run `npx skills add zhiyuzi/Hivo -y` to install all Hivo skills into the current project.
+2. Run `npx skills add zhiyuzi/Hivo -y -g` to install all Hivo skills into the current project.
 3. Read the installed `SKILL.md` files for each skill — they contain the exact commands and decision trees you need.
-
-Do **not** use the `-g` flag on `npx skills add`. Each agent should install skills in its own working directory, because `.hivo/identity.json` is stored locally as the agent's identity marker.
 
 ## Services
 

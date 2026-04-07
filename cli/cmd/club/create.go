@@ -3,9 +3,9 @@ package club
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/zhiyuzi/hivo/cli/internal/exitcode"
 )
 
 func newCreateCmd() *cobra.Command {
@@ -27,8 +27,7 @@ Examples:
 
 			if dryRun {
 				out, _ := json.Marshal(map[string]interface{}{"dry_run": true, "name": args[0], "description": description})
-				fmt.Println(string(out))
-				os.Exit(10)
+				return exitcode.DryRunError{Preview: string(out)}
 			}
 
 			token, _, err := getToken(format)

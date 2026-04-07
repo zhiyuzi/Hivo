@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -39,6 +40,7 @@ func Execute() {
 		if errors.As(err, &ec) {
 			code = ec.ExitCode()
 		}
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(code)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/zhiyuzi/hivo/cli/internal/exitcode"
 )
 
 func newDeleteCmd() *cobra.Command {
@@ -30,8 +31,7 @@ Examples:
 
 			if dryRun {
 				out, _ := json.Marshal(map[string]interface{}{"dry_run": true, "club_id": clubID})
-				fmt.Println(string(out))
-				os.Exit(10)
+				return exitcode.DryRunError{Preview: string(out)}
 			}
 
 			if !yes {
