@@ -1,0 +1,134 @@
+{
+  "skill_name": "hivo-club",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create a new club called 'Research Team' with description 'A team for research projects'.",
+      "expected_output": "Agent runs `hivo club create 'Research Team' --description 'A team for research projects'` and shows the returned club_id.",
+      "expectations": [
+        "The skill runs `hivo club create` with the correct name and --description flag",
+        "The skill shows the club_id from the output",
+        "The skill checks that .hivo/identity.json exists first"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Show me info about club_abc123.",
+      "expected_output": "Agent runs `hivo club info club_abc123` and displays club details.",
+      "expectations": [
+        "The skill runs `hivo club info club_abc123`",
+        "The skill does not call the API directly"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "List all members of club_abc123.",
+      "expected_output": "Agent runs `hivo club members club_abc123`.",
+      "expectations": [
+        "The skill runs `hivo club members club_abc123`",
+        "The skill displays the member list"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Invite agent agt_xyz to club_abc123 as a member.",
+      "expected_output": "Agent runs `hivo club invite club_abc123 --sub agt_xyz --role member`.",
+      "expectations": [
+        "The skill runs `hivo club invite` with --sub and --role flags",
+        "The skill does not use --link for a direct invite"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Create an invite link for club_abc123 that can be used 5 times.",
+      "expected_output": "Agent runs `hivo club invite club_abc123 --link --max-uses 5` and shows the returned token.",
+      "expectations": [
+        "The skill runs `hivo club invite` with --link and --max-uses 5",
+        "The skill shows the invite token from the output",
+        "The skill does not use --sub for a link invite"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Join a club using invite token abc123token.",
+      "expected_output": "Agent runs `hivo club join abc123token`.",
+      "expectations": [
+        "The skill runs `hivo club join abc123token`",
+        "The skill shows the club_id of the joined club"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Leave club_abc123.",
+      "expected_output": "Agent confirms with the user, then runs `hivo club leave club_abc123 --yes`.",
+      "expectations": [
+        "The skill confirms with the user before leaving",
+        "The skill runs `hivo club leave club_abc123 --yes`"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Show me all clubs I belong to.",
+      "expected_output": "Agent runs `hivo club my` and displays the list of clubs.",
+      "expectations": [
+        "The skill runs `hivo club my`",
+        "The skill displays club_id, name, and role for each club"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Update club_abc123's name to 'New Team Name'.",
+      "expected_output": "Agent runs `hivo club update club_abc123 --name 'New Team Name'`.",
+      "expectations": [
+        "The skill runs `hivo club update` with --name flag",
+        "The skill notes this requires owner or admin role"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Update my membership display name in club_abc123 to 'Bot v2'.",
+      "expected_output": "Agent runs `hivo club update-me club_abc123 --display-name 'Bot v2'`.",
+      "expectations": [
+        "The skill runs `hivo club update-me` with --display-name flag",
+        "The skill does not confuse update-me (membership profile) with update (club info)"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "List all invite links for club_abc123.",
+      "expected_output": "Agent runs `hivo club invite-links club_abc123`.",
+      "expectations": [
+        "The skill runs `hivo club invite-links club_abc123`",
+        "The skill notes this requires owner or admin role"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "Revoke invite link token abc123 from club_abc123.",
+      "expected_output": "Agent runs `hivo club revoke-link club_abc123 abc123`.",
+      "expectations": [
+        "The skill runs `hivo club revoke-link` with club_id and token as positional args",
+        "The skill notes this requires owner or admin role"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "Promote agt_xyz to admin in club_abc123.",
+      "expected_output": "Agent runs `hivo club update-member club_abc123 agt_xyz --role admin`.",
+      "expectations": [
+        "The skill runs `hivo club update-member` with --role admin",
+        "The skill notes this requires owner or admin role"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "Delete club_abc123.",
+      "expected_output": "Agent confirms with the user (this is irreversible), then runs `hivo club delete club_abc123 --yes`.",
+      "expectations": [
+        "The skill warns the user that deletion is irreversible",
+        "The skill runs `hivo club delete club_abc123 --yes`",
+        "The skill notes only the owner can delete a club"
+      ]
+    }
+  ]
+}

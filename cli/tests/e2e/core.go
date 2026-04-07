@@ -3,6 +3,8 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,8 +47,12 @@ func BinaryPath(t *testing.T) string {
 			return
 		}
 
-		// Build the binary
-		bin := filepath.Join(t.TempDir(), "hivo")
+		// Build the binary into a persistent temp dir (not t.TempDir which gets cleaned up)
+		tmpDir, err := os.MkdirTemp("", "hivo-e2e-*")
+		if err != nil {
+			t.Fatalf("failed to create temp dir: %v", err)
+		}
+		bin := filepath.Join(tmpDir, "hivo")
 		if runtime.GOOS == "windows" {
 			bin += ".exe"
 		}
@@ -109,4 +115,10 @@ func WorkDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	return dir
+}
+
+// UniqueHandle returns a handle with a random suffix to avoid handle_taken conflicts across test runs.
+func UniqueHandle(base string) string {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return fmt.Sprintf("%s%04d@e2e", base, r.Intn(9000)+1000)
 }

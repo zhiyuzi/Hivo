@@ -1,13 +1,20 @@
 package cmd
 
 import (
+	"errors"
 	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/zhiyuzi/hivo/cli/cmd/club"
 	"github.com/zhiyuzi/hivo/cli/cmd/drop"
 	"github.com/zhiyuzi/hivo/cli/cmd/identity"
+	"github.com/zhiyuzi/hivo/cli/internal/exitcode"
 )
+
+// ExitCoder is implemented by errors that carry a specific exit code.
+type ExitCoder interface {
+	ExitCode() int
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "hivo",
@@ -27,7 +34,12 @@ var Format string
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
+		code := exitcode.Err
+		var ec ExitCoder
+		if errors.As(err, &ec) {
+			code = ec.ExitCode()
+		}
+		os.Exit(code)
 	}
 }
 

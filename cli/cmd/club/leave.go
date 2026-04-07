@@ -12,6 +12,7 @@ import (
 
 func newLeaveCmd() *cobra.Command {
 	var yes bool
+	var dryRun bool
 
 	cmd := &cobra.Command{
 		Use:   "leave <club_id>",
@@ -20,11 +21,18 @@ func newLeaveCmd() *cobra.Command {
 
 Examples:
   hivo club leave club_abc123 --yes
-  hivo club leave club_abc123`,
+  hivo club leave club_abc123
+  hivo club leave club_abc123 --dry-run`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 			clubID := args[0]
+
+			if dryRun {
+				out, _ := json.Marshal(map[string]interface{}{"dry_run": true, "club_id": clubID})
+				fmt.Println(string(out))
+				os.Exit(10)
+			}
 
 			if !yes {
 				fmt.Fprintf(os.Stderr, "Leave club %s? [y/N] ", clubID)
@@ -36,11 +44,11 @@ Examples:
 				}
 			}
 
-			token, _, err := getToken(format)
+			token, reg, err := getToken(format)
 			if err != nil {
 				return err
 			}
-			result, status, err := doRequest("DELETE", clubURL()+"/clubs/"+clubID+"/members/me", token, nil)
+			result, status, err := doRequest("DELETE", clubURL()+"/clubs/"+clubID+"/members/"+reg.Sub, token, nil)
 			if err != nil {
 				writeErr(format, "request_failed", err.Error(), "", true)
 				return err
@@ -58,5 +66,6 @@ Examples:
 		},
 	}
 	cmd.Flags().BoolVar(&yes, "yes", false, "Skip confirmation prompt")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview leave without executing (exit 10)")
 	return cmd
 }

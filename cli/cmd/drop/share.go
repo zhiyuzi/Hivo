@@ -3,11 +3,14 @@ package drop
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 )
 
 func newShareCmd() *cobra.Command {
+	var dryRun bool
+
 	cmd := &cobra.Command{
 		Use:   "share <remote_path> <public|private>",
 		Short: "Set file visibility to public or private",
@@ -15,10 +18,11 @@ func newShareCmd() *cobra.Command {
 
 Examples:
   hivo drop share docs/report.html public
-  hivo drop share docs/report.html private`,
+  hivo drop share docs/report.html private
+  hivo drop share docs/report.html public --dry-run`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 			remotePath := args[0]
 			visibility := args[1]
 
@@ -27,13 +31,19 @@ Examples:
 				return fmt.Errorf("invalid visibility: %s", visibility)
 			}
 
+			if dryRun {
+				out, _ := json.Marshal(map[string]interface{}{"dry_run": true, "path": remotePath, "visibility": visibility})
+				fmt.Println(string(out))
+				os.Exit(10)
+			}
+
 			token, err := getToken(format)
 			if err != nil {
 				return err
 			}
 
 			body := map[string]string{"visibility": visibility}
-			result, status, err := doRequest("PATCH", dropURL()+"/files/"+remotePath+"/visibility", token, body)
+			result, status, err := doRequest("PATCH", dropURL()+"/files/"+remotePath, token, body)
 			if err != nil {
 				writeErr(format, "request_failed", err.Error(), "", true)
 				return err
@@ -56,5 +66,6 @@ Examples:
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview share change without executing (exit 10)")
 	return cmd
 }

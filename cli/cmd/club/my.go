@@ -18,12 +18,12 @@ Examples:
   hivo club my --format json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 			token, _, err := getToken(format)
 			if err != nil {
 				return err
 			}
-			result, status, err := doRequest("GET", clubURL()+"/clubs/my", token, nil)
+			result, status, err := doRequest("GET", clubURL()+"/me/clubs", token, nil)
 			if err != nil {
 				writeErr(format, "request_failed", err.Error(), "", true)
 				return err

@@ -27,7 +27,7 @@ Examples:
   hivo identity update --bio "I help with tasks" --email bot@example.com`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 
 			if displayName == "" && bio == "" && email == "" {
 				return writeError(format, "usage_error", "At least one of --display-name, --bio, --email is required", "", false, fmt.Errorf("no fields provided"))

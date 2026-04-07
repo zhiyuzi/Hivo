@@ -24,7 +24,7 @@ Examples:
   hivo club invite club_abc123 --link --expires 2025-12-31T23:59:59Z`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 			clubID := args[0]
 
 			if !link && sub == "" {

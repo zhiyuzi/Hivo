@@ -21,7 +21,7 @@ Examples:
   hivo drop download notes/memo.txt`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 			remotePath := args[0]
 
 			token, err := getToken(format)

@@ -18,7 +18,7 @@ Examples:
   hivo club info club_abc123 --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 			token, _, err := getToken(format)
 			if err != nil {
 				return err

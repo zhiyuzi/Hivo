@@ -1,2 +1,5 @@
 .claude/settings.local.json
 CLAUDE.local.md
+cli/.hivo/
+.hivo/
+*.exe

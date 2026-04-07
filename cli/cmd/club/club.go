@@ -25,5 +25,7 @@ Examples:
 	cmd.AddCommand(newUpdateMeCmd())
 	cmd.AddCommand(newInviteLinksCmd())
 	cmd.AddCommand(newRevokeLinkCmd())
+	cmd.AddCommand(newDeleteCmd())
+	cmd.AddCommand(newUpdateMemberCmd())
 	return cmd
 }

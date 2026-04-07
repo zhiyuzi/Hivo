@@ -19,21 +19,25 @@ def _wildcard_resource(resource: str) -> str | None:
     return None
 
 
+_clubs_cache: dict[str, list[str]] = {}
+
+
 def _get_clubs_for_subject(subject: str) -> list[str]:
     """Query hivo-club for all clubs the subject belongs to."""
     if not subject.startswith("agt_"):
         return []
+    if subject in _clubs_cache:
+        return _clubs_cache[subject]
     try:
-        # We call club service with the subject's identity — but ACL has no token for the subject.
-        # The club service exposes GET /me/clubs which requires Bearer.
-        # For internal service-to-service calls, we use a special internal query:
-        # GET /internal/members/{sub}/clubs — defined in hivo-club for ACL use.
         url = f"{settings.club_url}/internal/members/{subject}/clubs"
         resp = httpx.get(url, timeout=3)
         if resp.status_code == 200:
-            return [c["club_id"] for c in resp.json()]
+            result = [c["club_id"] for c in resp.json()]
+            _clubs_cache[subject] = result
+            return result
     except Exception:
         pass
+    _clubs_cache[subject] = []
     return []
 
 

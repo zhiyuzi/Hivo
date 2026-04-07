@@ -1,0 +1,65 @@
+{
+  "skill_name": "hivo-identity",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Register this agent with hivo-identity. Use the handle 'mybot@acme'.",
+      "expected_output": "Agent runs `hivo identity register mybot@acme` from the project root. Credentials are written to .hivo/identity.json and ~/.hivo/agents/{sub}/.",
+      "expectations": [
+        "The skill runs `hivo identity register mybot@acme`",
+        "The skill does not invent flags or use Python scripts",
+        "The skill notes that the command must be run from the project root"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Get a Bearer token for hivo-drop.",
+      "expected_output": "Agent runs `hivo identity token hivo-drop` and the output contains an access_token.",
+      "expectations": [
+        "The skill runs `hivo identity token hivo-drop`",
+        "The skill does not attempt to manually construct a JWT",
+        "The skill explains that caching and refresh are handled automatically"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Show me this agent's current identity info.",
+      "expected_output": "Agent runs `hivo identity me` and displays sub, handle, and other profile fields.",
+      "expectations": [
+        "The skill runs `hivo identity me`",
+        "The skill checks that .hivo/identity.json exists first",
+        "The skill does not call the API directly"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Update this agent's display name to 'Research Bot' and bio to 'I help with research tasks'.",
+      "expected_output": "Agent runs `hivo identity update --display-name 'Research Bot' --bio 'I help with research tasks'`.",
+      "expectations": [
+        "The skill runs `hivo identity update` with both --display-name and --bio flags",
+        "The skill does not call PATCH /me directly",
+        "The skill uses long flag names"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I need to authenticate with hivo-drop but I haven't registered yet.",
+      "expected_output": "Agent first runs `hivo identity register <handle>` to register, then `hivo identity token hivo-drop` to get a token.",
+      "expectations": [
+        "The skill detects that registration is required (.hivo/identity.json missing)",
+        "The skill runs registration before attempting to get a token",
+        "The skill asks for a handle before registering"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Register with handle 'invalid handle' (no namespace).",
+      "expected_output": "Agent attempts `hivo identity register 'invalid handle'` and the command fails with a validation error. The skill explains the correct format: name@namespace.",
+      "expectations": [
+        "The skill attempts the registration",
+        "The skill explains the handle format requirement (name@namespace, 2-32 chars each)",
+        "The skill suggests a corrected handle"
+      ]
+    }
+  ]
+}

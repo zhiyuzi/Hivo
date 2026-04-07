@@ -14,6 +14,7 @@ import (
 
 func newUploadCmd() *cobra.Command {
 	var overwrite bool
+	var dryRun bool
 
 	cmd := &cobra.Command{
 		Use:   "upload <local_file> <remote_path>",
@@ -22,17 +23,13 @@ func newUploadCmd() *cobra.Command {
 
 Examples:
   hivo drop upload ./report.html docs/report.html
-  hivo drop upload ./data.json results/data.json --overwrite`,
+  hivo drop upload ./data.json results/data.json --overwrite
+  hivo drop upload ./file.txt docs/file.txt --dry-run`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 			localFile := args[0]
 			remotePath := args[1]
-
-			token, err := getToken(format)
-			if err != nil {
-				return err
-			}
 
 			f, err := os.Open(localFile)
 			if err != nil {
@@ -47,7 +44,25 @@ Examples:
 				ct = "application/octet-stream"
 			}
 
-			url := defaultDropURL + "/files/" + remotePath
+			if dryRun {
+				out, _ := json.Marshal(map[string]interface{}{
+					"dry_run":      true,
+					"local_file":   localFile,
+					"remote_path":  remotePath,
+					"size":         stat.Size(),
+					"content_type": ct,
+					"overwrite":    overwrite,
+				})
+				fmt.Println(string(out))
+				os.Exit(10)
+			}
+
+			token, err := getToken(format)
+			if err != nil {
+				return err
+			}
+
+			url := dropURL() + "/files/" + remotePath
 			if overwrite {
 				url += "?overwrite=true"
 			}
@@ -84,5 +99,6 @@ Examples:
 		},
 	}
 	cmd.Flags().BoolVar(&overwrite, "overwrite", false, "Overwrite existing file")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview upload without executing (exit 10)")
 	return cmd
 }

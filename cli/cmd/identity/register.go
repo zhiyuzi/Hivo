@@ -28,7 +28,7 @@ Writes to:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			handle := args[0]
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 
 			if issuer == "" {
 				if v := os.Getenv("HIVO_ISSUER_URL"); v != "" {
@@ -86,22 +86,4 @@ Writes to:
 
 	cmd.Flags().StringVar(&issuer, "issuer", "", "Identity service URL (default: https://id.hivo.ink)")
 	return cmd
-}
-
-func writeError(format, code, message, suggestion string, retryable bool, err error) error {
-	if format == "json" {
-		out, _ := json.Marshal(map[string]interface{}{
-			"error":      code,
-			"message":    message,
-			"suggestion": suggestion,
-			"retryable":  retryable,
-		})
-		fmt.Fprintln(os.Stderr, string(out))
-	} else {
-		fmt.Fprintf(os.Stderr, "error: %s\n", message)
-		if suggestion != "" {
-			fmt.Fprintf(os.Stderr, "hint:  %s\n", suggestion)
-		}
-	}
-	return err
 }

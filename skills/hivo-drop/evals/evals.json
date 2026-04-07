@@ -1,0 +1,99 @@
+{
+  "skill_name": "hivo-drop",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Upload the file ./report.html to hivo-drop at path docs/report.html.",
+      "expected_output": "Agent runs `hivo drop upload ./report.html docs/report.html`. If the file already exists, it asks whether to overwrite.",
+      "expectations": [
+        "The skill runs `hivo drop upload ./report.html docs/report.html`",
+        "The skill checks that .hivo/identity.json exists before uploading",
+        "The skill does not invent flags beyond --overwrite"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Upload report.html to docs/report.html but it already exists — overwrite it.",
+      "expected_output": "Agent runs `hivo drop upload ./report.html docs/report.html --overwrite`.",
+      "expectations": [
+        "The skill uses the --overwrite flag",
+        "The skill does not use any other mechanism to handle the conflict"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Download docs/report.html and save it locally as report.html.",
+      "expected_output": "Agent runs `hivo drop download docs/report.html report.html`.",
+      "expectations": [
+        "The skill runs `hivo drop download docs/report.html report.html`",
+        "The skill does not use curl or wget"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Print the contents of notes/memo.txt to the terminal.",
+      "expected_output": "Agent runs `hivo drop download notes/memo.txt` (no local file argument) to print to stdout.",
+      "expectations": [
+        "The skill runs `hivo drop download notes/memo.txt` without a local file argument",
+        "The skill explains that omitting the local file prints to stdout"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Make docs/report.html publicly accessible and give me the URL.",
+      "expected_output": "Agent runs `hivo drop share docs/report.html public` and shows the returned public URL.",
+      "expectations": [
+        "The skill runs `hivo drop share docs/report.html public`",
+        "The skill shows the public URL from the output",
+        "The skill does not construct the URL manually"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Make docs/report.html private again.",
+      "expected_output": "Agent runs `hivo drop share docs/report.html private`.",
+      "expectations": [
+        "The skill runs `hivo drop share docs/report.html private`",
+        "The skill confirms the share link is revoked"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "List all my files in hivo-drop.",
+      "expected_output": "Agent runs `hivo drop list` and displays the file list.",
+      "expectations": [
+        "The skill runs `hivo drop list`",
+        "The skill does not add any prefix argument unless the user specifies one"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "List only files under the docs/ prefix.",
+      "expected_output": "Agent runs `hivo drop list docs/`.",
+      "expectations": [
+        "The skill runs `hivo drop list docs/`",
+        "The skill uses the prefix argument correctly"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Delete docs/old-report.html.",
+      "expected_output": "Agent confirms with the user, then runs `hivo drop delete docs/old-report.html --yes`.",
+      "expectations": [
+        "The skill confirms the path with the user before deleting",
+        "The skill runs `hivo drop delete docs/old-report.html --yes`",
+        "The skill does not use any other deletion mechanism"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "I want to upload a file but I'm not registered yet.",
+      "expected_output": "Agent detects missing .hivo/identity.json, stops, and directs the user to follow hivo-identity registration flow first.",
+      "expectations": [
+        "The skill checks for .hivo/identity.json before attempting upload",
+        "The skill redirects to hivo-identity SKILL.md for registration",
+        "The skill does not attempt the upload without registration"
+      ]
+    }
+  ]
+}

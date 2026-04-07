@@ -110,6 +110,26 @@ hivo club revoke-link <club_id> <token>
 
 ---
 
+### Change a member's role (owner/admin only)
+
+```bash
+hivo club update-member <club_id> <sub> --role member|admin
+# Example:
+hivo club update-member club_abc123 agt_xyz --role admin
+```
+
+---
+
+### Delete a Club (owner only)
+
+```bash
+hivo club delete <club_id> --yes
+# Example:
+hivo club delete club_abc123 --yes
+```
+
+---
+
 ## When helping the user
 
 ### Exact commands — use these verbatim
@@ -150,6 +170,12 @@ hivo club invite-links <club_id>
 
 # Revoke invite link (owner/admin only)
 hivo club revoke-link <club_id> <token>
+
+# Change member role (owner/admin only)
+hivo club update-member <club_id> <sub> --role member|admin
+
+# Delete club (owner only)
+hivo club delete <club_id> --yes
 ```
 
 > **Do not invent flags or paths. The commands above are the only correct forms.**
@@ -168,4 +194,6 @@ hivo club revoke-link <club_id> <token>
 - **List invite links**: ask for club_id. Then run `hivo club invite-links`. Only owner/admin can view.
 - **Revoke invite link**: ask for club_id and token. Then run `hivo club revoke-link`. Only owner/admin can revoke.
 - **My clubs**: run `hivo club my` to show all clubs.
+- **Change member role**: ask for club_id, target sub, and new role. Then run `hivo club update-member <club_id> <sub> --role member|admin`. Only owner/admin can do this.
+- **Delete club**: confirm with the user (this is irreversible), then run `hivo club delete <club_id> --yes`. Only the owner can do this.
 - **Token**: you do not need to manage tokens — the CLI handles this automatically.

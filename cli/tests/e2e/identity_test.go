@@ -16,7 +16,7 @@ func TestIdentityRegister(t *testing.T) {
 
 	t.Run("register creates identity files", func(t *testing.T) {
 		result := RunCmd(t, Request{
-			Args:    []string{"identity", "register", "testbot@e2e"},
+			Args:    []string{"identity", "register", UniqueHandle("testbot")},
 			WorkDir: dir,
 		})
 
@@ -70,7 +70,7 @@ func TestIdentityToken(t *testing.T) {
 
 	// Register first
 	reg := RunCmd(t, Request{
-		Args:    []string{"identity", "register", "tokenbot@e2e"},
+		Args:    []string{"identity", "register", UniqueHandle("tokenbot")},
 		WorkDir: dir,
 	})
 	if reg.ExitCode != 0 {
@@ -103,7 +103,7 @@ func TestIdentityMe(t *testing.T) {
 
 	dir := WorkDir(t)
 	reg := RunCmd(t, Request{
-		Args:    []string{"identity", "register", "mebot@e2e"},
+		Args:    []string{"identity", "register", UniqueHandle("mebot")},
 		WorkDir: dir,
 	})
 	if reg.ExitCode != 0 {
@@ -124,6 +124,65 @@ func TestIdentityMe(t *testing.T) {
 		}
 		if out["sub"] == nil {
 			t.Fatal("no sub in output")
+		}
+	})
+}
+
+func TestIdentityUpdate(t *testing.T) {
+	if os.Getenv("HIVO_E2E") == "" {
+		t.Skip("set HIVO_E2E=1 to run e2e tests")
+	}
+
+	dir := WorkDir(t)
+	reg := RunCmd(t, Request{
+		Args:    []string{"identity", "register", UniqueHandle("updatebot")},
+		WorkDir: dir,
+	})
+	if reg.ExitCode != 0 {
+		t.Fatalf("register failed: %s", reg.Stderr)
+	}
+
+	t.Run("update display-name and bio", func(t *testing.T) {
+		result := RunCmd(t, Request{
+			Args:    []string{"identity", "update", "--display-name", "E2E Bot", "--bio", "e2e test bio"},
+			WorkDir: dir,
+		})
+		if result.ExitCode != 0 {
+			t.Fatalf("expected exit 0, got %d\nstderr: %s", result.ExitCode, result.Stderr)
+		}
+		var out map[string]interface{}
+		if err := json.Unmarshal([]byte(result.Stdout), &out); err != nil {
+			t.Fatalf("stdout is not valid JSON: %v", err)
+		}
+		if out["display_name"] != "E2E Bot" {
+			t.Fatalf("expected display_name=E2E Bot, got: %v", out["display_name"])
+		}
+	})
+
+	t.Run("update email", func(t *testing.T) {
+		result := RunCmd(t, Request{
+			Args:    []string{"identity", "update", "--email", "bot@e2e.test"},
+			WorkDir: dir,
+		})
+		if result.ExitCode != 0 {
+			t.Fatalf("expected exit 0, got %d\nstderr: %s", result.ExitCode, result.Stderr)
+		}
+		var out map[string]interface{}
+		if err := json.Unmarshal([]byte(result.Stdout), &out); err != nil {
+			t.Fatalf("stdout is not valid JSON: %v", err)
+		}
+		if out["email"] != "bot@e2e.test" {
+			t.Fatalf("expected email=bot@e2e.test, got: %v", out["email"])
+		}
+	})
+
+	t.Run("update with no flags fails", func(t *testing.T) {
+		result := RunCmd(t, Request{
+			Args:    []string{"identity", "update"},
+			WorkDir: dir,
+		})
+		if result.ExitCode == 0 {
+			t.Fatal("expected non-zero exit when no flags provided")
 		}
 	})
 }

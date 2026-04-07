@@ -23,7 +23,7 @@ Examples:
   hivo identity me --format json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 
 			ws, _, err := config.FindWorkspaceIdentity()
 			if err != nil {

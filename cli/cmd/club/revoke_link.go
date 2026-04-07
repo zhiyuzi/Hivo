@@ -17,7 +17,7 @@ Examples:
   hivo club revoke-link club_abc123 abc123token`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 			token, _, err := getToken(format)
 			if err != nil {
 				return err

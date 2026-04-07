@@ -17,13 +17,12 @@ Examples:
   hivo club join abc123token`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 			token, _, err := getToken(format)
 			if err != nil {
 				return err
 			}
-			body := map[string]string{"token": args[0]}
-			result, status, err := doRequest("POST", clubURL()+"/clubs/join", token, body)
+			result, status, err := doRequest("POST", clubURL()+"/join/"+args[0], token, nil)
 			if err != nil {
 				writeErr(format, "request_failed", err.Error(), "", true)
 				return err

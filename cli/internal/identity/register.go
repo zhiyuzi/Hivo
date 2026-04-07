@@ -28,8 +28,8 @@ func Register(issuerURL, handle string, priv ed25519.PrivateKey, pubJWK []byte) 
 	}
 
 	regBody := map[string]interface{}{
-		"handle":     handle,
-		"public_key": jwkMap,
+		"handle":  handle,
+		"jwk_pub": jwkMap,
 	}
 	regResp, err := postJSON(issuerURL+"/register", regBody)
 	if err != nil {
@@ -40,10 +40,6 @@ func Register(issuerURL, handle string, priv ed25519.PrivateKey, pubJWK []byte) 
 	if !ok {
 		return nil, fmt.Errorf("register: no challenge in response")
 	}
-	regID, ok := regResp["registration_id"].(string)
-	if !ok {
-		return nil, fmt.Errorf("register: no registration_id in response")
-	}
 
 	// Step 2: sign challenge
 	sig := ed25519.Sign(priv, []byte(challenge))
@@ -51,8 +47,8 @@ func Register(issuerURL, handle string, priv ed25519.PrivateKey, pubJWK []byte) 
 
 	// Step 3: POST /register/verify
 	verifyBody := map[string]string{
-		"registration_id": regID,
-		"signature":       sigB64,
+		"challenge": challenge,
+		"signature": sigB64,
 	}
 	verifyResp, err := postJSON(issuerURL+"/register/verify", verifyBody)
 	if err != nil {

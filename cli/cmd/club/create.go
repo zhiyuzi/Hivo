@@ -3,12 +3,14 @@ package club
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 )
 
 func newCreateCmd() *cobra.Command {
 	var description string
+	var dryRun bool
 
 	cmd := &cobra.Command{
 		Use:   "create <name>",
@@ -17,10 +19,18 @@ func newCreateCmd() *cobra.Command {
 
 Examples:
   hivo club create "My Team"
-  hivo club create "My Team" --description "A project team"`,
+  hivo club create "My Team" --description "A project team"
+  hivo club create "My Team" --dry-run`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
+
+			if dryRun {
+				out, _ := json.Marshal(map[string]interface{}{"dry_run": true, "name": args[0], "description": description})
+				fmt.Println(string(out))
+				os.Exit(10)
+			}
+
 			token, _, err := getToken(format)
 			if err != nil {
 				return err
@@ -52,5 +62,6 @@ Examples:
 		},
 	}
 	cmd.Flags().StringVar(&description, "description", "", "Club description")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview create without executing (exit 10)")
 	return cmd
 }

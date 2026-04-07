@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/zhiyuzi/hivo/cli/internal/config"
+	"github.com/zhiyuzi/hivo/cli/internal/exitcode"
 	identitylib "github.com/zhiyuzi/hivo/cli/internal/identity"
 )
 
@@ -19,6 +20,10 @@ func dropURL() string {
 		return v
 	}
 	return defaultDropURL
+}
+
+func effectiveFormat(flagVal string) string {
+	return exitcode.EffectiveFormat(flagVal)
 }
 
 func getToken(format string) (string, error) {
@@ -92,6 +97,41 @@ func writeErr(format, code, message, suggestion string, retryable bool) {
 	}
 }
 
+// exitCodeForError maps API error codes to CLI exit codes
+func exitCodeForError(errCode string, status int) int {
+	switch errCode {
+	case "not_found":
+		return exitcode.NotFound
+	case "forbidden", "permission_denied":
+		return exitcode.Forbidden
+	case "conflict":
+		return exitcode.Conflict
+	case "usage_error", "validation_error":
+		return exitcode.Usage
+	}
+	if status == 404 {
+		return exitcode.NotFound
+	}
+	if status == 403 {
+		return exitcode.Forbidden
+	}
+	if status == 409 {
+		return exitcode.Conflict
+	}
+	if status == 422 {
+		return exitcode.Usage
+	}
+	return exitcode.Err
+}
+
+type apiError struct {
+	code     string
+	exitCode int
+}
+
+func (e *apiError) Error() string    { return e.code }
+func (e *apiError) ExitCode() int    { return e.exitCode }
+
 func handleAPIError(format string, result map[string]interface{}, status int) error {
 	errCode, _ := result["error"].(string)
 	msg, _ := result["message"].(string)
@@ -99,5 +139,5 @@ func handleAPIError(format string, result map[string]interface{}, status int) er
 		errCode = fmt.Sprintf("http_%d", status)
 	}
 	writeErr(format, errCode, msg, "", false)
-	return fmt.Errorf("%s: %s", errCode, msg)
+	return &apiError{code: fmt.Sprintf("%s: %s", errCode, msg), exitCode: exitCodeForError(errCode, status)}
 }

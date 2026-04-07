@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 
 from .auth import require_auth
 from .db import get_conn
-from .models import CheckResponse, GrantRequest, GrantResponse, RevokeRequest
+from .models import CheckResponse, GrantRequest, GrantResponse, RevokeRequest, BatchGrantRequest
 from .acl import check_permission, has_admin_on_resource, write_audit, _now_iso
 
 router = APIRouter()
@@ -36,6 +36,34 @@ def index():
 @router.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# ── POST /grants/batch ────────────────────────────────────────────────────────
+
+@router.post("/grants/batch")
+def create_grants_batch(body: BatchGrantRequest, caller: dict = Depends(require_auth)):
+    caller_sub = caller["sub"]
+    now = _now_iso()
+    with get_conn() as conn:
+        # Check admin once per unique resource
+        checked_resources: set[str] = set()
+        for g in body.grants:
+            if g.resource not in checked_resources:
+                if not has_admin_on_resource(conn, caller_sub, g.resource):
+                    if g.subject != caller_sub:
+                        raise HTTPException(
+                            status_code=403,
+                            detail={"error": "forbidden", "message": "Caller is not the resource owner or admin"},
+                        )
+                checked_resources.add(g.resource)
+            conn.execute(
+                """INSERT INTO grants (subject, resource, action, effect, granted_by, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(subject, resource, action, effect) DO NOTHING""",
+                (g.subject, g.resource, g.action, g.effect, caller_sub, now),
+            )
+            write_audit(conn, "grant_created", g.subject, g.resource, g.action, caller_sub)
+    return {"granted": len(body.grants)}
 
 
 # ── POST /grants ──────────────────────────────────────────────────────────────

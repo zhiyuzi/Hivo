@@ -20,7 +20,7 @@ Examples:
   hivo club update club_abc123 --description "Updated description"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 			if name == "" && description == "" {
 				writeErr(format, "usage_error", "At least one of --name or --description is required", "", false)
 				return fmt.Errorf("no fields provided")

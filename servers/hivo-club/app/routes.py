@@ -490,3 +490,14 @@ def my_clubs(payload: dict = Depends(require_auth)):
             for r in rows
         ]
     }
+
+
+@router.get("/internal/members/{sub}/clubs")
+def internal_member_clubs(sub: str):
+    """Internal endpoint for hivo-acl to query club memberships without auth."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT club_id FROM memberships WHERE sub = ?",
+            (sub,),
+        ).fetchall()
+    return [{"club_id": r["club_id"]} for r in rows]

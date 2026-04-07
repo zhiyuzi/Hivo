@@ -9,6 +9,10 @@ class GrantRequest(BaseModel):
     effect: Literal["allow", "deny"] = "allow"
 
 
+class BatchGrantRequest(BaseModel):
+    grants: list[GrantRequest]
+
+
 class RevokeRequest(BaseModel):
     subject: str
     resource: str

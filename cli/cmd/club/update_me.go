@@ -20,7 +20,7 @@ Examples:
   hivo club update-me club_abc123 --bio "Team bot"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
 			if displayName == "" && bio == "" {
 				writeErr(format, "usage_error", "At least one of --display-name or --bio is required", "", false)
 				return fmt.Errorf("no fields provided")
@@ -36,7 +36,7 @@ Examples:
 			if bio != "" {
 				body["bio"] = bio
 			}
-			result, status, err := doRequest("PATCH", clubURL()+"/clubs/"+args[0]+"/members/me", token, body)
+			result, status, err := doRequest("PATCH", clubURL()+"/clubs/"+args[0]+"/me", token, body)
 			if err != nil {
 				writeErr(format, "request_failed", err.Error(), "", true)
 				return err
