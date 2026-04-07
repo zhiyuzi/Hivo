@@ -235,89 +235,54 @@ TRUSTED_ISSUERS=https://id.hivo.ink
 
 ## 12. Skill：hivo-drop
 
-位于 `skills/hivo-drop/`。它是 `servers/hivo-drop` 的完整 skill 代理，覆盖文件上传、下载、删除、列表及可见性管理全流程。所有操作均需 Bearer token，token 由 hivo-identity skill 提供。
+位于 `skills/hivo-drop/`。它是 `servers/hivo-drop` 的完整 skill 代理，SKILL.md 描述 CLI 命令用法，覆盖文件上传、下载、删除、列表及可见性管理全流程。所有操作均需 Bearer token，由 CLI 自动处理。
 
 ### 前置条件
 
-`skills/hivo-identity` 必须已安装并完成注册（`assets/identity.json` 和 `assets/private_key.pem` 存在）。hivo-drop 的所有脚本在运行时自动调用 `../hivo-identity/scripts/get_token.py hivo-drop` 获取 Bearer token，无需用户手动提供。
+Agent 必须已通过 `hivo identity register` 完成注册（`.hivo/identity.json` 存在）。CLI 在执行 drop 命令时自动获取和刷新 Bearer token，无需手动提供。
 
 ### 目录结构
 
 ```
 hivo-drop/
-  SKILL.md          ← skill 描述与使用说明
-  scripts/
-    upload.py       ← 上传文件（PUT /files/{path}）
-    download.py     ← 下载文件（GET /files/{path}）
-    delete.py       ← 删除文件（DELETE /files/{path}）
-    list.py         ← 列出文件（GET /list?prefix=）
-    share.py        ← 设置可见性（PATCH /files/{path}），公开时返回分享 URL
-  assets/
-    config.json     ← drop_url，读取 hivo-drop 服务地址
+  SKILL.md          ← skill 描述与 CLI 命令用法
+  evals/
+    evals.json      ← skill 评估用例
 ```
 
-### scripts 行为
+### CLI 命令
 
-所有脚本共用两个辅助函数（各自内联）：
+所有操作通过统一 CLI 工具 `hivo` 执行（安装：`npm install -g @hivoai/cli`）。
 
-- `_load_config()` — 读取 `assets/config.json`，返回 `drop_url`
-- `_get_token()` — 调用 `../hivo-identity/scripts/get_token.py hivo-drop`，返回 access_token
+**上传文件：**
+```bash
+hivo drop upload <local_file> <remote_path>
+hivo drop upload <local_file> <remote_path> --overwrite
+hivo drop upload <local_file> <remote_path> --dry-run
+```
+Content-Type 基于文件扩展名自动检测。调用 `PUT /files/{path}`。
 
-路径定位方式（不依赖运行时工作目录）：
+**下载文件：**
+```bash
+hivo drop download <remote_path> [local_file]
+```
+未指定 local_file 时内容输出到 stdout。
 
-```python
-from pathlib import Path
-ASSETS_DIR = Path(__file__).parent.parent / "assets"
-IDENTITY_GET_TOKEN = Path(__file__).parent.parent.parent / "hivo-identity" / "scripts" / "get_token.py"
+**删除文件：**
+```bash
+hivo drop delete <remote_path>
+hivo drop delete <remote_path> --yes
+hivo drop delete <remote_path> --dry-run
 ```
 
-**upload.py**
-
-调用方式：`python scripts/upload.py <local_file> <remote_path> [--overwrite]`
-
-1. 读取本地文件，检测 Content-Type（基于文件扩展名，fallback `application/octet-stream`）
-2. 获取 Bearer token
-3. `PUT /files/{remote_path}?overwrite=true/false`，附 `Content-Type` 和 `Content-Length`
-4. 打印结果：`Uploaded: {path} ({size} bytes)`
-
-**download.py**
-
-调用方式：`python scripts/download.py <remote_path> [local_file]`
-
-1. 获取 Bearer token
-2. `GET /files/{remote_path}`
-3. 若提供 `local_file`：写入磁盘，打印 `Saved: {local_file}`
-4. 若未提供：内容写入 stdout（适合文本文件管道使用）
-
-**delete.py**
-
-调用方式：`python scripts/delete.py <remote_path>`
-
-1. 获取 Bearer token
-2. `DELETE /files/{remote_path}`
-3. 打印 `Deleted: {path}`
-
-**list.py**
-
-调用方式：`python scripts/list.py [prefix]`
-
-1. 获取 Bearer token
-2. `GET /list?prefix={prefix}`
-3. 表格打印：path、content_type、visibility、size
-
-**share.py**
-
-调用方式：`python scripts/share.py <remote_path> public|private`
-
-1. 获取 Bearer token
-2. `PATCH /files/{remote_path}` with `{"visibility": "public"|"private"}`
-3. 若设为 public：打印 `Public URL: {drop_url}/p/{share_id}`
-4. 若设为 private：打印 `File is now private. Share link revoked.`
-
-### assets/config.json
-
-```json
-{"drop_url": "https://drop.hivo.ink"}
+**列出文件：**
+```bash
+hivo drop list [prefix]
 ```
 
-唯一配置项。所有脚本运行时读取此文件作为服务地址。可改为私有部署地址。
+**设置可见性：**
+```bash
+hivo drop share <remote_path> public|private
+hivo drop share <remote_path> public --dry-run
+```
+设为 public 时返回 share_id，公开 URL 为 `{drop_url}/p/{share_id}`。

@@ -230,66 +230,50 @@ v1 做 OIDC-like 最小子集，不追求完整合规。
 
 ## 9. Skill：hivo-identity
 
-位于 `skills/hivo-identity/`。封装注册、鉴权、token 管理全流程，供 agent 在运行时直接调用。
+位于 `skills/hivo-identity/`。封装注册、鉴权、token 管理全流程，SKILL.md 描述 CLI 命令用法，供 agent 在运行时直接调用。
 
 ### 目录结构
 
 ```
 hivo-identity/
-  SKILL.md
-  scripts/
-    register.py     ← 生成 Ed25519 密钥对，完成注册，写入 assets/
-    get_token.py    ← 读取私钥，生成 assertion，换取 access_token，支持缓存与自动刷新
-    me.py           ← 调用 GET /me，打印当前身份信息（sub、handle、display_name、bio、email、status）
-    update_me.py    ← 调用 PATCH /me，修改 display_name、bio、email
-  assets/
-    config.json     ← issuer_url，唯一提交到 git 的 assets 文件
-    .gitignore      ← 排除 private_key.pem、token_cache.json
+  SKILL.md          ← skill 描述与 CLI 命令用法
+  evals/
+    evals.json      ← skill 评估用例
 ```
 
-### scripts/register.py
+### CLI 命令
 
-调用方式：`python scripts/register.py <handle>`
+所有操作通过统一 CLI 工具 `hivo` 执行（安装：`npm install -g @hivoai/cli`）。
 
-1. 生成 Ed25519 密钥对
-2. 调用 `POST /register` 提交 handle + 公钥，获取 challenge
-3. 用私钥签署 challenge，调用 `POST /register/verify` 完成注册
-4. 写入 `assets/private_key.pem`、`assets/public_key.jwk`、`assets/identity.json`
-
-路径定位（不依赖运行时工作目录）：
-```python
-from pathlib import Path
-ASSETS_DIR = Path(__file__).parent.parent / "assets"
+**注册：**
+```bash
+hivo identity register <handle>
+hivo identity register <handle> --issuer https://id.hivo.ink
 ```
+生成 Ed25519 密钥对，完成 challenge-proof 注册，写入 `.hivo/identity.json` 和 `~/.hivo/agents/{sub}/`。
 
-### scripts/get_token.py
-
-调用方式：`python scripts/get_token.py <audience>`，audience 必填。
-
-三步策略（按顺序尝试）：
-
-| 步骤 | 条件 | 动作 |
-|------|------|------|
-| 1 | 缓存 access_token 有效期 > 60s | 直接返回 |
-| 2 | access_token 过期，refresh_token 有效 | 调用 `POST /token/refresh` |
-| 3 | refresh_token 过期或不存在 | 用私钥签 assertion，调用 `POST /token` |
-
-token 缓存写入 `assets/token_cache.json`（gitignored），按 audience 分别存储。
-
-### scripts/me.py
-
-调用方式：`python scripts/me.py`
-
-调用 `GET /me`，打印：sub、handle、display_name、bio、email、status、created_at。内部调用 `get_token.py hivo-identity` 获取 Bearer token。
-
-### scripts/update_me.py
-
-调用方式：`python scripts/update_me.py [--display-name NAME] [--bio BIO] [--email EMAIL]`
-
-至少提供一个字段。调用 `PATCH /me` 修改当前 agent 的 display_name、bio、email。内部调用 `get_token.py hivo-identity` 获取 Bearer token。
-
-### assets/config.json
-
-```json
-{"issuer_url": "https://id.hivo.ink"}
+**获取 Token：**
+```bash
+hivo identity token <audience>
 ```
+自动处理缓存、刷新、assertion 签发。输出 `{"access_token": "..."}`。
+
+**查看身份：**
+```bash
+hivo identity me
+```
+输出：sub、handle、display_name、bio、email、status、created_at。
+
+**修改 Profile：**
+```bash
+hivo identity update [--display-name NAME] [--bio BIO] [--email EMAIL]
+```
+至少提供一个字段。调用 `PATCH /me`。
+
+### 凭证存储
+
+- `.hivo/identity.json`（当前目录）：`{"sub": "agt_xxx"}`
+- `~/.hivo/agents/{sub}/private_key.pem`：Ed25519 私钥
+- `~/.hivo/agents/{sub}/public_key.jwk`：Ed25519 公钥（JWK）
+- `~/.hivo/agents/{sub}/registration.json`：注册信息
+- `~/.hivo/agents/{sub}/token_cache.json`：按 audience 缓存的 token

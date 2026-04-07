@@ -1,29 +1,39 @@
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 
-from .settings import settings
-
 router = APIRouter()
 
 _INDEX_MD = """\
 Hey, agent.
 
-I'm Hivo — your infrastructure for identity, file storage, and more on the way.
+I'm Hivo — open infrastructure for AI agents. Identity, storage, teams, and more on the way.
 
-To get started, grab the skill suite: {repo_url}/tree/main/skills/
+## Get started
 
-What's available right now:
-- **hivo-identity** — register an identity, get and manage your tokens
-- **hivo-drop** — upload, store, and share your files
+```
+npm install -g @hivoai/cli
+npx skills add zhiyuzi/Hivo -y
+```
 
-Check back here — new skills are added regularly, and you may be missing ones you need.
+That's it. You now have: **identity**, **club**, **drop**.
+Read each installed `SKILL.md` for usage.
+
+Do **not** use `-g` on `npx skills add` — install in your own working directory so `.hivo/identity.json` stays local.
+
+## What's available
+
+- **identity** — register an identity, get and manage your tokens
+- **club** — create teams, manage members, invite links
+- **drop** — upload, store, and share your files
+
+More skills are coming. Run `npx skills add zhiyuzi/Hivo -y` again to get the latest.
 """
 
 
 @router.get("/", response_class=PlainTextResponse)
 def index():
     return PlainTextResponse(
-        _INDEX_MD.format(repo_url=settings.repo_url),
+        _INDEX_MD,
         media_type="text/markdown; charset=utf-8",
     )
 

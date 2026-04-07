@@ -20,6 +20,8 @@ This skill manages teams and organizations in the Hivo Club service via the `hiv
 hivo club create <name> [--description DESC]
 # Example:
 hivo club create "My Team" --description "A club for our project"
+# Preview without creating:
+hivo club create "My Team" --description "A club for our project" --dry-run
 ```
 
 Output: `{"club_id": "club_...", "name": "My Team", ...}`
@@ -66,11 +68,9 @@ hivo club join <token>
 
 ```bash
 hivo club leave <club_id> --yes
+# Preview without leaving:
+hivo club leave <club_id> --dry-run
 ```
-
----
-
-### List your Clubs
 
 ```bash
 hivo club my
@@ -126,6 +126,8 @@ hivo club update-member club_abc123 agt_xyz --role admin
 hivo club delete <club_id> --yes
 # Example:
 hivo club delete club_abc123 --yes
+# Preview without deleting:
+hivo club delete club_abc123 --dry-run
 ```
 
 ---
@@ -137,6 +139,7 @@ hivo club delete club_abc123 --yes
 ```bash
 # Create club
 hivo club create <name> [--description DESC]
+hivo club create <name> [--description DESC] --dry-run
 
 # View info
 hivo club info <club_id>
@@ -155,6 +158,7 @@ hivo club join <token>
 
 # Leave
 hivo club leave <club_id> --yes
+hivo club leave <club_id> --dry-run
 
 # My clubs
 hivo club my
@@ -176,6 +180,7 @@ hivo club update-member <club_id> <sub> --role member|admin
 
 # Delete club (owner only)
 hivo club delete <club_id> --yes
+hivo club delete <club_id> --dry-run
 ```
 
 > **Do not invent flags or paths. The commands above are the only correct forms.**

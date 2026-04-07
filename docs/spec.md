@@ -14,10 +14,13 @@ hivo/
     hivo-club/               ← 微服务：组织/团队管理
     hivo-drop/               ← 微服务：文件存储与公开分享
     hivo-web/                ← 微服务：根域名入口，生态索引页
+  cli/                       ← Go CLI 工具（hivo），封装所有微服务 API
+  npm/                       ← npm 分发包（@hivoai/cli）
   skills/
     hivo-identity/           ← Skill：hivo-identity 的完整 skill 代理
     hivo-club/               ← Skill：hivo-club 的完整 skill 代理
     hivo-drop/               ← Skill：hivo-drop 的完整 skill 代理
+  .github/workflows/         ← CI/CD（交叉编译、GitHub Release、npm 发布）
   docs/                      ← 本文档所在位置
 ```
 
@@ -30,8 +33,11 @@ hivo/
 | `servers/hivo-club` | 微服务 | 组织/团队管理，成员资格与角色，Club 信息修改，成员群内 profile 管理 |
 | `servers/hivo-drop` | 微服务 | 文件存储与公开分享（支持任意格式，文本/HTML/二进制均可） |
 | `servers/hivo-web` | 微服务 | 根域名入口，返回生态索引页，不处理业务逻辑 |
-| `skills/hivo-identity` | Skill | hivo-identity 的完整 skill 代理，覆盖注册、鉴权、token 管理全流程 |
-| `skills/hivo-drop` | Skill | hivo-drop 的完整 skill 代理，覆盖上传、下载、分享、visibility 管理全流程 |
+| `cli/` | CLI 工具 | Go/Cobra 实现的统一命令行工具 `hivo`，封装所有微服务 API，供 agent 和人类使用 |
+| `npm/` | 分发包 | npm 包 `@hivoai/cli`，postinstall 按平台下载二进制 |
+| `skills/hivo-identity` | Skill | hivo-identity 的完整 skill 代理，描述 CLI 命令用法，覆盖注册、鉴权、token 管理全流程 |
+| `skills/hivo-club` | Skill | hivo-club 的完整 skill 代理，描述 CLI 命令用法，覆盖 Club 创建、成员管理、邀请链接全流程 |
+| `skills/hivo-drop` | Skill | hivo-drop 的完整 skill 代理，描述 CLI 命令用法，覆盖上传、下载、分享、visibility 管理全流程 |
 
 ### 1.3 服务关系与耦合原则
 
@@ -43,9 +49,10 @@ servers/hivo-acl               ← 授权基底，不依赖任何其他服务（
 servers/hivo-club              ← 依赖 hivo-identity（token 验证）、hivo-acl（授权管理）
 servers/hivo-drop              ← 依赖 hivo-identity（token 验证）、hivo-acl（权限查询）
 servers/hivo-web               ← 无业务依赖，独立运行
-skills/hivo-identity           ← 依赖 servers/hivo-identity（注册与换 token）
-skills/hivo-club               ← 依赖 servers/hivo-club（Club 管理）
-skills/hivo-drop               ← 依赖 servers/hivo-drop（文件操作）
+cli/                           ← 依赖所有微服务（通过 HTTP API 调用）
+skills/hivo-identity           ← 依赖 cli/（通过 hivo identity 命令）→ servers/hivo-identity
+skills/hivo-club               ← 依赖 cli/（通过 hivo club 命令）→ servers/hivo-club
+skills/hivo-drop               ← 依赖 cli/（通过 hivo drop 命令）→ servers/hivo-drop
 ```
 
 **耦合原则（必须遵守）：**
@@ -61,7 +68,8 @@ skills/hivo-drop               ← 依赖 servers/hivo-drop（文件操作）
 
 - 微服务：uv + FastAPI + SQLite3 + Pydantic
 - hivo-drop 额外依赖 Cloudflare R2
-- Skills：纯 Python 脚本，无框架依赖
+- CLI：Go + Cobra，分发方式为 npm（`@hivoai/cli`）+ GitHub Releases 二进制
+- Skills：SKILL.md 描述 CLI 命令用法，供 AI Agent 加载
 
 ### 1.5 运行时入口约定
 
@@ -69,19 +77,31 @@ skills/hivo-drop               ← 依赖 servers/hivo-drop（文件操作）
 
 **根域名模板（hivo-web）：**
 
-```markdown
+````markdown
 Hey, agent.
 
-I'm Hivo — your infrastructure for identity, file storage, and more on the way.
+I'm Hivo — open infrastructure for AI agents. Identity, storage, teams, and more on the way.
 
-To get started, grab the skill suite: {REPO_URL}/tree/main/skills/
+## Get started
 
-What's available right now:
-- **hivo-identity** — register an identity, get and manage your tokens
-- **hivo-drop** — upload, store, and share your files
-
-Check back here — new skills are added regularly, and you may be missing ones you need.
 ```
+npm install -g @hivoai/cli
+npx skills add zhiyuzi/Hivo -y
+```
+
+That's it. You now have: **identity**, **club**, **drop**.
+Read each installed `SKILL.md` for usage.
+
+Do **not** use `-g` on `npx skills add` — install in your own working directory so `.hivo/identity.json` stays local.
+
+## What's available
+
+- **identity** — register an identity, get and manage your tokens
+- **club** — create teams, manage members, invite links
+- **drop** — upload, store, and share your files
+
+More skills are coming. Run `npx skills add zhiyuzi/Hivo -y` again to get the latest.
+````
 
 **子域名模板（各微服务，以 hivo-identity 为例）：**
 
@@ -100,7 +120,53 @@ For the full skill suite and everything else Hivo offers: https://hivo.ink
 - 不实现 `GET /README.md`；服务的使用文档由 skills 仓库的 SKILL.md 负责
 - skill 清单（`What's available right now:` 块）随部署实际包含的服务更新
 
-### 1.6 部署模式
+### 1.6 CLI 工具（hivo）
+
+所有微服务 API 通过统一 CLI 工具 `hivo` 封装，供 agent 和人类使用。Skills 的 SKILL.md 描述的是 CLI 命令用法，不再直接调用 HTTP API。
+
+**安装方式：**
+- `npm install -g @hivoai/cli`（推荐，自动按平台下载二进制）
+- GitHub Releases 下载对应平台二进制
+
+**命令结构：**
+
+```
+hivo identity register|token|me|update     ← 身份管理（4 个命令）
+hivo club create|info|members|invite|...   ← 团队管理（13 个命令）
+hivo drop upload|download|delete|list|share ← 文件管理（5 个命令）
+```
+
+**全局 flag：**
+- `--format json|text`（默认 text，非 TTY 环境自动切换为 json）
+
+**Exit codes：**
+
+| Code | 含义 |
+|------|------|
+| 0 | 成功 |
+| 1 | 通用错误 |
+| 2 | 用法错误（参数不合法） |
+| 3 | 资源不存在（404） |
+| 4 | 权限不足（403） |
+| 5 | 冲突（409） |
+| 10 | dry-run 预览完成 |
+
+**`--dry-run`：** 所有写操作命令（create、delete、leave、upload、share）支持 `--dry-run`，输出 JSON 预览但不执行，exit code 10。
+
+**凭证管理：**
+- `hivo identity register` 在当前目录写入 `.hivo/identity.json`（含 sub），密钥存入 `~/.hivo/agents/{sub}/`
+- 后续命令从当前目录向上查找 `.hivo/identity.json`，自动注入 Bearer token
+- Token 缓存、刷新由 CLI 内部自动处理
+
+**环境变量覆盖：**
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `HIVO_ISSUER_URL` | `https://id.hivo.ink` | hivo-identity 服务地址 |
+| `HIVO_CLUB_URL` | `https://club.hivo.ink` | hivo-club 服务地址 |
+| `HIVO_DROP_URL` | `https://drop.hivo.ink` | hivo-drop 服务地址 |
+
+### 1.7 部署模式
 
 - **公有云**：你自己部署一套，面向全球 agent 开放
 - **私有部署**：企业克隆仓库自行部署，通过 `iss` 区分不同部署实例
@@ -200,12 +266,9 @@ aud        — 这个 token 给谁用（资源服务校验）
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 5.3 Hivo Club（组织/团队管理）
+### 5.3 ~~Hivo Club（组织/团队管理）~~ ✅ 已实现
 
-- 基于 hivo-identity 的身份体系扩展
-- 管理 agent 的归属关系：成员资格、角色、权限
-- handle 中的 namespace 不等于 club——归属关系由此服务决定
-- 独立仓库，独立微服务
+> 已实现为 `servers/hivo-club`，详见 [docs/specs/hivo-club.md](specs/hivo-club.md)。
 
 ### 5.4 Hivo Wallet（钱包）
 
@@ -236,11 +299,9 @@ aud        — 这个 token 给谁用（资源服务校验）
 - 超限返回 `429 rate_limited`
 - v1 未实现，后续按实际需求确定限流策略
 
-### 5.8 hivo-identity：Profile 修改接口
+### 5.8 ~~hivo-identity：Profile 修改接口~~ ✅ 已实现
 
-- 新增 `PATCH /me`，需要 Bearer 认证
-- 支持修改 `display_name` 和 `email` 两个字段
-- `sub` 和 `handle` 不可修改
+> 已实现为 `PATCH /me`，支持修改 display_name、bio、email。详见 [docs/specs/hivo-identity.md](specs/hivo-identity.md)。
 
 ### 5.9 Hivo Calendar（日历）
 
@@ -334,14 +395,9 @@ aud        — 这个 token 给谁用（资源服务校验）
 - 认证基于 hivo-identity Bearer token
 - 独立仓库，独立微服务
 
-### 5.19 Hivo ACL（访问控制）
+### 5.19 ~~Hivo ACL（访问控制）~~ ✅ 已实现
 
-- 跨服务统一访问控制层：细粒度管理"谁能对什么资源做什么操作"
-- 解决的问题：目前各服务（如 hivo-drop）只有 owner-only 权限，无法支持多 agent 协作共享资源
-- 典型场景：Agent A 授权 Agent B 读取某个 Drop 文件；Club 成员共享某个 Table；Pipeline 中子任务的执行权限
-- 与 Club 的关系：Club 提供成员关系，ACL 基于成员关系定义权限策略——Club 是"谁在里面"，ACL 是"里面的人能做什么"
-- 认证基于 hivo-identity Bearer token
-- 独立仓库，独立微服务
+> 已实现为 `servers/hivo-acl`，详见 [docs/specs/hivo-acl.md](specs/hivo-acl.md)。
 
 ### 5.20 Hivo Observability（可观测性）
 

@@ -12,10 +12,13 @@ hivo/
     hivo-club/                 ← 微服务：组织/团队管理、成员资格与角色
     hivo-drop/                 ← 微服务：文件存储与公开分享
     hivo-web/                  ← 微服务：根域名入口，生态索引页
+  cli/                         ← Go CLI 工具（hivo），封装所有微服务 API
+  npm/                         ← npm 分发包（@hivoai/cli）
   skills/
-    hivo-identity/             ← Skill：hivo-identity 的完整 skill 代理，覆盖注册、鉴权、token 管理、profile 修改全流程
-    hivo-club/                 ← Skill：hivo-club 的完整 skill 代理，覆盖 Club 创建、成员管理、邀请链接全流程
-    hivo-drop/                 ← Skill：hivo-drop 的完整 skill 代理，覆盖上传、下载、分享、visibility 管理全流程
+    hivo-identity/             ← Skill：hivo-identity 的完整 skill 代理，描述 CLI 命令用法
+    hivo-club/                 ← Skill：hivo-club 的完整 skill 代理，描述 CLI 命令用法
+    hivo-drop/                 ← Skill：hivo-drop 的完整 skill 代理，描述 CLI 命令用法
+  .github/workflows/           ← CI/CD（交叉编译、GitHub Release、npm 发布）
   docs/                        ← 技术规格文档
 ```
 
@@ -27,7 +30,8 @@ hivo/
 
 - 微服务：uv + FastAPI + SQLite3 + Pydantic
 - hivo-drop 额外依赖 Cloudflare R2（S3 兼容 API）
-- Skill：纯 Python 脚本，无框架依赖
+- CLI：Go + Cobra，分发方式为 npm（`@hivoai/cli`）+ GitHub Releases 二进制
+- Skill：SKILL.md 描述 CLI 命令用法，供 AI Agent 加载
 
 ## 域名
 

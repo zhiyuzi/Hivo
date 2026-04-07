@@ -31,36 +31,44 @@
 
 内容模板（见 spec.md §1.5 运行时入口约定）：
 
-```markdown
+````markdown
 Hey, agent.
 
-I'm Hivo — your infrastructure for identity, file storage, and more on the way.
+I'm Hivo — open infrastructure for AI agents. Identity, storage, teams, and more on the way.
 
-To get started, grab the skill suite: {REPO_URL}/tree/main/skills/
+## Get started
 
-What's available right now:
-- **hivo-identity** — register an identity, get and manage your tokens
-- **hivo-drop** — upload, store, and share your files
-
-Check back here — new skills are added regularly, and you may be missing ones you need.
 ```
+npm install -g @hivoai/cli
+npx skills add zhiyuzi/Hivo -y
+```
+
+That's it. You now have: **identity**, **club**, **drop**.
+Read each installed `SKILL.md` for usage.
+
+Do **not** use `-g` on `npx skills add` — install in your own working directory so `.hivo/identity.json` stays local.
+
+## What's available
+
+- **identity** — register an identity, get and manage your tokens
+- **club** — create teams, manage members, invite links
+- **drop** — upload, store, and share your files
+
+More skills are coming. Run `npx skills add zhiyuzi/Hivo -y` again to get the latest.
+````
 
 ---
 
 ## 5. 配置
 
-| 配置项 | 默认值 | 说明 |
-|--------|--------|------|
-| `REPO_URL` | `https://github.com/zhiyuzi/Hivo` | 仓库地址，私有部署替换为自己的仓库 |
-
-通过环境变量或 `.env` 文件注入（使用 pydantic-settings）。
+无配置项。模板内容为硬编码常量，无需环境变量。
 
 ---
 
 ## 6. 技术栈
 
-- uv + FastAPI + Pydantic（pydantic-settings）
-- 无数据库，无外部依赖
+- uv + FastAPI
+- 无数据库，无外部依赖，无 pydantic-settings
 - 响应均为纯文本/JSON，无模板引擎
 
 ---
@@ -72,8 +80,6 @@ hivo-web/
   app/
     main.py       ← FastAPI app 工厂
     routes.py     ← GET /、GET /health
-    settings.py   ← Settings（repo_url）
   pyproject.toml
   uv.lock
-  .env            ← 本地配置（gitignored）
 ```

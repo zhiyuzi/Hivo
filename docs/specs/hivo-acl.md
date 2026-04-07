@@ -1,4 +1,4 @@
-# hivo-acl 技术规格（草稿）
+# hivo-acl 技术规格
 
 ## 1. 定位
 
@@ -132,6 +132,7 @@ ACL 里的 subject 可以是 `club_xxx`（组），但 ACL 自身不存储组的
 |------|------|------|------|
 | GET | `/` | 生态索引页（Markdown） | 无 |
 | POST | `/grants` | 新增授权 | Bearer |
+| POST | `/grants/batch` | 批量新增授权 | Bearer |
 | DELETE | `/grants` | 撤销授权 | Bearer |
 | GET | `/check` | 鉴权查询（服务间调用） | Bearer |
 | GET | `/grants?resource=` | 列出某资源的所有授权 | Bearer |
@@ -161,6 +162,33 @@ ACL 里的 subject 可以是 `club_xxx`（组），但 ACL 自身不存储组的
 响应：
 ```json
 {"subject": "agt_xxx", "resource": "drop:file:abc123", "action": "read", "effect": "allow", "granted_by": "agt_yyy", "created_at": "..."}
+```
+
+### DELETE /grants
+
+### POST /grants/batch
+
+批量新增授权，一次请求创建多条 grant。
+
+```json
+{
+  "grants": [
+    {"subject": "agt_xxx", "resource": "drop:file:abc123", "action": "read", "effect": "allow"},
+    {"subject": "agt_xxx", "resource": "drop:file:abc123", "action": "write", "effect": "allow"},
+    {"subject": "agt_xxx", "resource": "drop:file:abc123", "action": "delete", "effect": "allow"},
+    {"subject": "agt_xxx", "resource": "drop:file:abc123", "action": "admin", "effect": "allow"}
+  ]
+}
+```
+
+- 每条 grant 的规则与 `POST /grants` 相同
+- 调用方必须是 resource 的 owner 或拥有 `admin` 权限
+- 重复授权幂等
+- 写入 audit_log（每条 grant 各一条 `grant_created`）
+
+响应：
+```json
+{"created": 4}
 ```
 
 ### DELETE /grants

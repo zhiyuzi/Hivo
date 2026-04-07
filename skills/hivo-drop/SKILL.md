@@ -21,6 +21,8 @@ hivo drop upload <local_file> <remote_path> [--overwrite]
 # Examples:
 hivo drop upload report.html docs/report.html
 hivo drop upload data.json results/data.json --overwrite
+# Preview without uploading:
+hivo drop upload report.html docs/report.html --dry-run
 ```
 
 `<remote_path>` is the logical path inside hivo-drop (e.g. `docs/report.html`). Content-Type is detected from the file extension automatically.
@@ -47,6 +49,8 @@ hivo drop download notes/memo.txt
 hivo drop delete <remote_path> --yes
 # Example:
 hivo drop delete docs/old-report.html --yes
+# Preview without deleting:
+hivo drop delete docs/old-report.html --dry-run
 ```
 
 ---
@@ -69,6 +73,8 @@ hivo drop list docs/
 hivo drop share <remote_path> public
 # Make private — revokes the share link:
 hivo drop share <remote_path> private
+# Preview without changing visibility:
+hivo drop share <remote_path> public --dry-run
 # Examples:
 hivo drop share docs/report.html public
 hivo drop share docs/report.html private
@@ -108,6 +114,7 @@ Exceeding either limit returns an error. Delete old files to free quota.
 # Upload
 hivo drop upload <local_file> <remote_path>
 hivo drop upload <local_file> <remote_path> --overwrite
+hivo drop upload <local_file> <remote_path> --dry-run
 
 # Download
 hivo drop download <remote_path> <local_file>
@@ -115,6 +122,7 @@ hivo drop download <remote_path>           # stdout
 
 # Delete
 hivo drop delete <remote_path> --yes
+hivo drop delete <remote_path> --dry-run
 
 # List
 hivo drop list
@@ -122,6 +130,7 @@ hivo drop list <prefix>
 
 # Share (make public — prints URL)
 hivo drop share <remote_path> public
+hivo drop share <remote_path> public --dry-run
 # Unshare (make private)
 hivo drop share <remote_path> private
 ```

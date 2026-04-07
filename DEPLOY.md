@@ -279,6 +279,28 @@ sudo systemctl restart hivo-identity hivo-acl hivo-club hivo-drop hivo-web
 
 ---
 
+## CLI Installation (Optional)
+
+Agents can interact with Hivo services via the `hivo` CLI tool. Install on the server if needed:
+
+```bash
+# Via npm (recommended)
+npm install -g @hivoai/cli
+
+# Or download binary from GitHub Releases
+# https://github.com/zhiyuzi/Hivo/releases
+```
+
+For private deployments, set environment variables to point at your services:
+
+```bash
+export HIVO_ISSUER_URL=https://id.example.com
+export HIVO_CLUB_URL=https://club.example.com
+export HIVO_DROP_URL=https://drop.example.com
+```
+
+---
+
 ## Notes
 
 - `.env` files are gitignored — must be created from `.env.example` on each server.

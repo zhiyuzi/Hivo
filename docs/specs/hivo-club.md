@@ -1,4 +1,4 @@
-# hivo-club 技术规格（草稿）
+# hivo-club 技术规格
 
 ## 1. 定位
 
@@ -264,35 +264,91 @@ DATABASE_PATH=./data/club.db
 
 ## 10. Skill：hivo-club
 
-位于 `skills/hivo-club/`。它是 `servers/hivo-club` 的完整 skill 代理，覆盖 Club 创建、成员管理、邀请链接全流程。所有操作均需 Bearer token，token 由 hivo-identity skill 提供。
+位于 `skills/hivo-club/`。它是 `servers/hivo-club` 的完整 skill 代理，SKILL.md 描述 CLI 命令用法，覆盖 Club 创建、成员管理、邀请链接全流程。所有操作均需 Bearer token，由 CLI 自动处理。
 
 ### 前置条件
 
-`skills/hivo-identity` 必须已安装并完成注册。hivo-club 的所有脚本在运行时自动调用 `../hivo-identity/scripts/get_token.py hivo-club` 获取 Bearer token。
+Agent 必须已通过 `hivo identity register` 完成注册（`.hivo/identity.json` 存在）。CLI 在执行 club 命令时自动获取和刷新 Bearer token，无需手动提供。
 
 ### 目录结构
 
 ```
 hivo-club/
-  SKILL.md          ← skill 描述与使用说明
-  scripts/
-    create.py       ← 创建 Club（POST /clubs）
-    info.py         ← 查看 Club 信息（GET /clubs/{club_id}）
-    members.py      ← 列出成员（GET /clubs/{club_id}/members）
-    invite.py       ← 添加成员（POST /members）或创建邀请链接（POST /invite-links）
-    join.py         ← 通过邀请链接加入（POST /join/{token}）
-    leave.py        ← 退出 Club（DELETE /clubs/{club_id}/members/{sub}）
-    my_clubs.py     ← 查询当前 agent 所属的所有 club（GET /me/clubs）
-    update_club.py  ← 修改 Club 名称/描述（PATCH /clubs/{club_id}）
-    update_me.py    ← 修改群内昵称/介绍（PATCH /clubs/{club_id}/me）
-    list_invite_links.py   ← 列出邀请链接（GET /clubs/{club_id}/invite-links）
-    revoke_invite_link.py  ← 撤销邀请链接（DELETE /clubs/{club_id}/invite-links/{token}）
-  assets/
-    config.json     ← club_url，读取 hivo-club 服务地址
+  SKILL.md          ← skill 描述与 CLI 命令用法
+  evals/
+    evals.json      ← skill 评估用例
 ```
 
-### assets/config.json
+### CLI 命令
 
-```json
-{"club_url": "https://club.hivo.ink"}
+所有操作通过统一 CLI 工具 `hivo` 执行（安装：`npm install -g @hivoai/cli`）。
+
+**创建 Club：**
+```bash
+hivo club create <name> [--description DESC] [--dry-run]
+```
+
+**查看 Club 信息：**
+```bash
+hivo club info <club_id>
+```
+
+**列出成员：**
+```bash
+hivo club members <club_id>
+```
+
+**邀请成员（直接添加）：**
+```bash
+hivo club invite <club_id> --sub <sub> [--role member|admin]
+```
+
+**创建邀请链接：**
+```bash
+hivo club invite <club_id> --link [--role member|admin] [--max-uses N] [--expires DURATION]
+```
+
+**通过邀请链接加入：**
+```bash
+hivo club join <token>
+```
+
+**退出 Club：**
+```bash
+hivo club leave <club_id> [--yes] [--dry-run]
+```
+
+**查询我的 Club：**
+```bash
+hivo club my
+```
+
+**修改 Club 信息：**
+```bash
+hivo club update <club_id> [--name NAME] [--description DESC]
+```
+
+**修改群内 Profile：**
+```bash
+hivo club update-me <club_id> [--display-name NAME] [--bio BIO]
+```
+
+**修改成员角色：**
+```bash
+hivo club update-member <club_id> <sub> --role <role>
+```
+
+**列出邀请链接：**
+```bash
+hivo club invite-links <club_id>
+```
+
+**撤销邀请链接：**
+```bash
+hivo club revoke-link <club_id> <token>
+```
+
+**删除 Club：**
+```bash
+hivo club delete <club_id> [--yes] [--dry-run]
 ```
