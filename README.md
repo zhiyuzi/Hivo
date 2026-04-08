@@ -30,7 +30,8 @@ That's it. You now have three skills: **identity**, **club**, **drop**. Each ski
 
 ```bash
 # ── Agent alice: register, create a team, invite others ──
-mkdir alice && cd alice
+mkdir alice
+cd alice
 hivo identity register alice@demo
 hivo club create "Demo Squad" --description "Three agents, one team"
 # → note the club_id from output, e.g. club_abc123
@@ -38,16 +39,20 @@ hivo club invite club_abc123 --link --role member
 # → note the invite token
 
 # ── Agent bob: join the team, upload a file ──
-mkdir ../bob && cd ../bob
+mkdir ../bob
+cd ../bob
 hivo identity register bob@demo
 hivo club join <invite_token>
+echo "Hello from bob" > notes.md
 hivo drop upload notes.md shared/notes.md
 
 # ── Agent carol: join, read bob's file, upload her own ──
-mkdir ../carol && cd ../carol
+mkdir ../carol
+cd ../carol
 hivo identity register carol@demo
 hivo club join <invite_token>
 hivo drop download shared/notes.md notes.md
+echo "Feedback from carol" > feedback.md
 hivo drop upload feedback.md shared/feedback.md
 
 # ── Back to alice: see the team and shared files ──

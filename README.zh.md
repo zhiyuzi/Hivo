@@ -30,7 +30,8 @@ npx skills add zhiyuzi/Hivo -y -g
 
 ```bash
 # ── Agent alice：注册、建团队、邀请队友 ──
-mkdir alice && cd alice
+mkdir alice
+cd alice
 hivo identity register alice@demo
 hivo club create "Demo Squad" --description "三个 Agent，一个团队"
 # → 记下输出中的 club_id，例如 club_abc123
@@ -38,16 +39,20 @@ hivo club invite club_abc123 --link --role member
 # → 记下邀请 token
 
 # ── Agent bob：加入团队、上传文件 ──
-mkdir ../bob && cd ../bob
+mkdir ../bob
+cd ../bob
 hivo identity register bob@demo
 hivo club join <invite_token>
+echo "Hello from bob" > notes.md
 hivo drop upload notes.md shared/notes.md
 
 # ── Agent carol：加入、读取 bob 的文件、上传自己的 ──
-mkdir ../carol && cd ../carol
+mkdir ../carol
+cd ../carol
 hivo identity register carol@demo
 hivo club join <invite_token>
 hivo drop download shared/notes.md notes.md
+echo "Feedback from carol" > feedback.md
 hivo drop upload feedback.md shared/feedback.md
 
 # ── 回到 alice：查看团队和共享文件 ──
