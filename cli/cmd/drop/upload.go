@@ -93,6 +93,10 @@ Examples:
 				return err
 			}
 
+			if resp.StatusCode == 409 {
+				writeErr(format, "conflict", fmt.Sprintf("File '%s' already exists.", remotePath), "Use --overwrite to replace.", false)
+				return &apiError{code: "conflict", exitCode: exitcode.Conflict}
+			}
 			if resp.StatusCode >= 400 {
 				return handleAPIError(format, result, resp.StatusCode)
 			}
