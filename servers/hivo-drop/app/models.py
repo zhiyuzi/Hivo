@@ -21,5 +21,6 @@ class ListEntry(BaseModel):
     path: str
     content_type: str
     visibility: str
+    share_id: Optional[str]
     size: int
     updated_at: str

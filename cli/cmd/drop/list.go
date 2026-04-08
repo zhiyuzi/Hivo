@@ -64,10 +64,16 @@ Examples:
 					fmt.Println("No files.")
 					return nil
 				}
-				fmt.Printf("%-40s  %-12s  %-10s  %s\n", "PATH", "SIZE", "VISIBILITY", "CONTENT_TYPE")
+				fmt.Printf("%-40s  %-12s  %-10s  %-20s  %s\n", "PATH", "SIZE", "VISIBILITY", "CONTENT_TYPE", "SHARE_URL")
 				for _, file := range files {
-					fmt.Printf("%-40s  %-12v  %-10v  %v\n",
-						file["path"], file["size"], file["visibility"], file["content_type"])
+					shareURL := "-"
+					if file["visibility"] == "public" {
+						if sid, ok := file["share_id"].(string); ok && sid != "" {
+							shareURL = dropURL() + "/p/" + sid
+						}
+					}
+					fmt.Printf("%-40s  %-12v  %-10v  %-20v  %s\n",
+						file["path"], file["size"], file["visibility"], file["content_type"], shareURL)
 				}
 			}
 			return nil

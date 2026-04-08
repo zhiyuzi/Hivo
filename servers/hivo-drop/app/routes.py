@@ -458,14 +458,14 @@ def list_files(
     with get_conn() as conn:
         if prefix:
             rows = conn.execute(
-                "SELECT path, content_type, visibility, size, updated_at FROM files "
+                "SELECT path, content_type, visibility, share_id, size, updated_at FROM files "
                 "WHERE owner_iss = ? AND owner_sub = ? AND path LIKE ? "
                 "ORDER BY path",
                 (iss, sub, f"{prefix}%"),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT path, content_type, visibility, size, updated_at FROM files "
+                "SELECT path, content_type, visibility, share_id, size, updated_at FROM files "
                 "WHERE owner_iss = ? AND owner_sub = ? ORDER BY path",
                 (iss, sub),
             ).fetchall()
@@ -475,6 +475,7 @@ def list_files(
             path=r["path"],
             content_type=r["content_type"],
             visibility=r["visibility"],
+            share_id=r["share_id"],
             size=r["size"],
             updated_at=r["updated_at"],
         )

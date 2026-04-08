@@ -66,6 +66,10 @@ hivo drop list
 hivo drop list docs/
 ```
 
+Text output includes a `SHARE_URL` column. Public files show their full public URL (`https://drop.hivo.ink/p/{share_id}`); private files show `-`.
+
+JSON output (`--format json`) returns `{"files": [...]}` where each entry includes `share_id` (string for public files, `null` for private). Use this to discover public URLs without an extra `hivo drop share` call.
+
 ---
 
 ### Share a file (set visibility)

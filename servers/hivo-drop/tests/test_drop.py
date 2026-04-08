@@ -234,9 +234,24 @@ def test_list_files(client):
     client.put("/files/y.txt", content=b"2", headers=h)
     r = client.get("/list", headers=auth_headers())
     assert r.status_code == 200
-    paths = [f["path"] for f in r.json()]
+    files = r.json()
+    paths = [f["path"] for f in files]
     assert "x.txt" in paths
     assert "y.txt" in paths
+    for f in files:
+        assert "share_id" in f
+        assert f["share_id"] is None  # private by default
+
+
+def test_list_includes_share_id_for_public_file(client):
+    h = {**auth_headers(), "Content-Type": "text/plain"}
+    client.put("/files/pub.txt", content=b"hello", headers=h)
+    client.patch("/files/pub.txt", json={"visibility": "public"}, headers=auth_headers())
+    r = client.get("/list", headers=auth_headers())
+    assert r.status_code == 200
+    pub = next(f for f in r.json() if f["path"] == "pub.txt")
+    assert pub["visibility"] == "public"
+    assert pub["share_id"] is not None
 
 
 def test_list_with_prefix(client):

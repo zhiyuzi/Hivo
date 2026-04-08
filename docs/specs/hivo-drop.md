@@ -279,6 +279,7 @@ hivo drop delete <remote_path> --dry-run
 ```bash
 hivo drop list [prefix]
 ```
+响应为数组，每项包含 `path`、`content_type`、`visibility`、`share_id`、`size`、`updated_at`。`share_id` 在 `visibility=public` 时为 UUIDv4 字符串，`private` 时为 `null`。
 
 **设置可见性：**
 ```bash
