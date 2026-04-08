@@ -2,6 +2,7 @@
 .claude/skills/
 .claude/commands/
 CLAUDE.local.md
+DEPLOY.local.md
 cli/.hivo/
 .hivo/
 *.exe
