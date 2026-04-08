@@ -172,7 +172,6 @@ WorkingDirectory=/opt/hivo/servers/hivo-web
 ExecStart=/opt/hivo/servers/hivo-web/.venv/bin/gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 2 --bind 127.0.0.1:8000
 Restart=always
 User=YOUR_SERVER_USER
-EnvironmentFile=/opt/hivo/servers/hivo-web/.env
 
 [Install]
 WantedBy=multi-user.target
