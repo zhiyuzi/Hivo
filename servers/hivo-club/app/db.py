@@ -55,6 +55,23 @@ def init_db(db_path: str | None = None) -> None:
 
             CREATE INDEX IF NOT EXISTS idx_invite_links_club
                 ON invite_links(club_id);
+
+            CREATE TABLE IF NOT EXISTS club_files (
+                id              TEXT PRIMARY KEY,
+                club_id         TEXT NOT NULL REFERENCES clubs(club_id),
+                file_id         TEXT NOT NULL,
+                owner_sub       TEXT NOT NULL,
+                alias           TEXT NOT NULL,
+                permissions     TEXT NOT NULL DEFAULT 'read',
+                contributed_by  TEXT NOT NULL,
+                added_at        TEXT NOT NULL,
+
+                UNIQUE(club_id, alias),
+                UNIQUE(club_id, file_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_club_files_club
+                ON club_files(club_id);
         """)
 
 

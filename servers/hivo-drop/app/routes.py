@@ -125,12 +125,104 @@ def public_get(share_id: str):
 
 # ── Authenticated file operations ──────────────────────────────────────────────
 
+# By-ID routes must be registered before {path:path} routes to avoid being
+# swallowed by the catch-all path parameter.
+
+
+@router.get("/files/by-id/{file_id}")
+def get_file_by_id(
+    file_id: str,
+    authorization: Optional[str] = Header(default=None),
+):
+    payload, token = _require_auth(authorization)
+    iss, sub = payload["iss"], payload["sub"]
+
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT r2_key, content_type, sha256, owner_iss, owner_sub FROM files WHERE id = ?",
+            (file_id,),
+        ).fetchone()
+
+    if not row:
+        return _err(404, "not_found", "File not found")
+
+    is_owner = row["owner_iss"] == iss and row["owner_sub"] == sub
+    if not is_owner and not check_permission(token, sub, file_id, "read"):
+        return _err(404, "not_found", "File not found")
+
+    try:
+        data = download_object(row["r2_key"])
+    except FileNotFoundError:
+        return _err(404, "not_found", "File not found")
+
+    return Response(
+        content=data,
+        media_type=row["content_type"],
+        headers={"ETag": f'"{row["sha256"]}"'},
+    )
+
+
+@router.put("/files/by-id/{file_id}")
+async def update_file_by_id(
+    file_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(default=None),
+    if_match: Optional[str] = Header(default=None, alias="if-match"),
+):
+    payload, token = _require_auth(authorization)
+    iss, sub = payload["iss"], payload["sub"]
+
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > settings.max_file_size:
+        return _err(413, "file_too_large", f"File exceeds {settings.max_file_size} bytes")
+
+    content_type = request.headers.get("content-type", "application/octet-stream")
+    data = await request.body()
+
+    if len(data) > settings.max_file_size:
+        return _err(413, "file_too_large", f"File exceeds {settings.max_file_size} bytes")
+
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT r2_key, sha256, path, owner_iss, owner_sub FROM files WHERE id = ?",
+            (file_id,),
+        ).fetchone()
+
+        if not row:
+            return _err(404, "not_found", "File not found")
+
+        is_owner = row["owner_iss"] == iss and row["owner_sub"] == sub
+        if not is_owner and not check_permission(token, sub, file_id, "write"):
+            return _err(404, "not_found", "File not found")
+
+        if if_match:
+            expected = if_match.strip('"')
+            if expected != row["sha256"]:
+                return _err(409, "etag_mismatch", "File has been modified since last read")
+
+        new_sha256 = hashlib.sha256(data).hexdigest()
+        now = _now_iso()
+
+        upload_object(row["r2_key"], data, content_type)
+        conn.execute(
+            """UPDATE files SET content_type = ?, size = ?, sha256 = ?, updated_at = ?
+               WHERE id = ?""",
+            (content_type, len(data), new_sha256, now, file_id),
+        )
+
+    return JSONResponse(
+        status_code=200,
+        content={"id": file_id, "path": row["path"], "size": len(data), "sha256": new_sha256},
+    )
+
+
 @router.put("/files/{path:path}")
 async def upload_file(
     path: str,
     request: Request,
     authorization: Optional[str] = Header(default=None),
     overwrite: bool = False,
+    if_match: Optional[str] = Header(default=None, alias="if-match"),
 ):
     payload, token = _require_auth(authorization)
     path = _validate_path(path)
@@ -153,12 +245,17 @@ async def upload_file(
 
     with get_conn() as conn:
         existing = conn.execute(
-            "SELECT id FROM files WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
+            "SELECT id, sha256 FROM files WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
             (iss, sub, path),
         ).fetchone()
 
         if existing and not overwrite:
             return _err(409, "conflict", f"File '{path}' already exists. Use overwrite=true to replace.")
+
+        if existing and if_match:
+            expected = if_match.strip('"')
+            if expected != existing["sha256"]:
+                return _err(409, "etag_mismatch", "File has been modified since last read")
 
         if not existing:
             # Quota check
@@ -186,12 +283,13 @@ async def upload_file(
                 (file_id, sub, iss, path, r2_key, content_type, len(data), sha256, now, now),
             )
 
-    status = 200 if existing else 201
-    if not existing:
+    if existing:
+        file_id = existing["id"]
+    else:
         register_owner_grants(token, sub, file_id)
     return JSONResponse(
-        status_code=status,
-        content={"path": path, "size": len(data), "sha256": sha256},
+        status_code=200 if existing else 201,
+        content={"id": file_id, "path": path, "size": len(data), "sha256": sha256},
     )
 
 
@@ -207,14 +305,14 @@ def get_file(
     with get_conn() as conn:
         # Fast path: owner
         row = conn.execute(
-            "SELECT id, r2_key, content_type FROM files WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
+            "SELECT id, r2_key, content_type, sha256 FROM files WHERE owner_iss = ? AND owner_sub = ? AND path = ?",
             (iss, sub, path),
         ).fetchone()
 
         if not row:
             # ACL path: file owned by someone else
             row = conn.execute(
-                "SELECT id, r2_key, content_type FROM files WHERE path = ?",
+                "SELECT id, r2_key, content_type, sha256 FROM files WHERE path = ?",
                 (path,),
             ).fetchone()
             if not row or not check_permission(token, sub, row["id"], "read"):
@@ -225,7 +323,7 @@ def get_file(
     except FileNotFoundError:
         return _err(404, "not_found", "File not found")
 
-    return Response(content=data, media_type=row["content_type"])
+    return Response(content=data, media_type=row["content_type"], headers={"ETag": f'"{row["sha256"]}"'})
 
 
 @router.head("/files/{path:path}")

@@ -9,7 +9,7 @@ hivo/
   servers/
     hivo-identity/             ← 微服务：身份注册、token 签发、profile 修改
     hivo-acl/                  ← 微服务：跨服务统一访问控制（授权基底）
-    hivo-club/                 ← 微服务：组织/团队管理、成员资格与角色
+    hivo-club/                 ← 微服务：组织/团队管理、成员资格与角色、群文件管理
     hivo-drop/                 ← 微服务：文件存储与公开分享
     hivo-web/                  ← 微服务：根域名入口，生态索引页
   cli/                         ← Go CLI 工具（hivo），封装所有微服务 API

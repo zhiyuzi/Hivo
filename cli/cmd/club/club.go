@@ -27,5 +27,6 @@ Examples:
 	cmd.AddCommand(newRevokeLinkCmd())
 	cmd.AddCommand(newDeleteCmd())
 	cmd.AddCommand(newUpdateMemberCmd())
+	cmd.AddCommand(newFilesCmd())
 	return cmd
 }

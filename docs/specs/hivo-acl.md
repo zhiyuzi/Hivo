@@ -264,6 +264,27 @@ GET /check?subject=agt_xxx&resource=drop:file:abc123&action=read
 
 **原则：资源的 owner 由各服务自己维护，ACL 只管显式授权关系。**
 
+**hivo-club 示例（群文件）：**
+
+1. 注册文件到群时，Club 在 ACL 给 club_id 授予对应权限：
+   ```
+   POST /grants/batch {"grants": [
+     {"subject": "{club_id}", "resource": "drop:file:{file_id}", "action": "read", "effect": "allow"}
+   ]}
+   ```
+   如果分享者选择 `read,write`，则同时授予 write：
+   ```
+   POST /grants/batch {"grants": [
+     {"subject": "{club_id}", "resource": "drop:file:{file_id}", "action": "read",  "effect": "allow"},
+     {"subject": "{club_id}", "resource": "drop:file:{file_id}", "action": "write", "effect": "allow"}
+   ]}
+   ```
+2. 移除群文件时，Club 撤销该 club 对该文件的所有授权：
+   ```
+   DELETE /grants {"subject": "{club_id}", "resource": "drop:file:{file_id}"}
+   ```
+3. 解散 Club 时，Club 遍历所有 club_files 记录，逐一撤销 ACL 授权
+
 ---
 
 ## 8. Token 验证

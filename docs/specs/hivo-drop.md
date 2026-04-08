@@ -286,3 +286,36 @@ hivo drop share <remote_path> public|private
 hivo drop share <remote_path> public --dry-run
 ```
 设为 public 时返回 share_id，公开 URL 为 `{drop_url}/p/{share_id}`。
+
+---
+
+## 补充端点
+
+### `GET /files/by-id/{file_id}`
+
+通过 file_id 下载文件（不需要知道文件所有者）。
+
+- 认证调用者
+- 如果调用者是 owner，直接放行
+- 否则调 ACL `check_permission(sub, file_id, "read")`
+- 响应头带 `ETag: "{sha256}"`
+
+### `PUT /files/by-id/{file_id}`
+
+通过 file_id 覆盖文件内容（需要 write 权限）。
+
+- 认证调用者
+- 如果调用者是 owner，直接放行
+- 否则调 ACL `check_permission(sub, file_id, "write")`
+- 支持 `If-Match` 乐观锁
+- 返回 `{id, path, size, sha256}`
+
+### ETag / If-Match 乐观锁
+
+- 下载端点（`GET /files/{path}`, `GET /files/by-id/{file_id}`）响应头带 `ETag: "{sha256}"`
+- 上传/覆盖端点（`PUT /files/{path}`, `PUT /files/by-id/{file_id}`）接受 `If-Match` 请求头
+- 不匹配返回 `409 etag_mismatch`
+
+### Upload 响应变更
+
+`PUT /files/{path}` 响应增加 `id` 字段：`{id, path, size, sha256}`

@@ -1,6 +1,6 @@
 ---
 name: hivo-club
-description: Manage teams and organizations in Hivo Club. Use this skill when the user asks to create a club, invite members, join via invite link, list members, view club info, update club info, update their membership profile, leave a club, list their clubs, list invite links, or revoke invite links.
+description: Manage teams and organizations in Hivo Club. Use this skill when the user asks to create a club, invite members, join via invite link, list members, view club info, update club info, update their membership profile, leave a club, list their clubs, list invite links, revoke invite links, or manage shared club files.
 ---
 
 # Hivo Club
@@ -132,6 +132,41 @@ hivo club delete club_abc123 --dry-run
 
 ---
 
+### Share a file with the club
+
+```bash
+hivo club files add <club_id> <file_id> --alias <path> [--permissions read|read,write]
+# Example:
+hivo club files add club_abc123 file_xyz --alias docs/report.html
+hivo club files add club_abc123 file_xyz --alias notes.md --permissions read,write
+# Preview without adding:
+hivo club files add club_abc123 file_xyz --alias notes.md --dry-run
+```
+
+The file must already exist in hivo-drop and you must be its owner. The `file_id` is returned by `hivo drop upload`.
+
+---
+
+### List shared files in a club
+
+```bash
+hivo club files list <club_id>
+```
+
+---
+
+### Remove a shared file from a club
+
+```bash
+hivo club files remove <club_id> <file_id> --yes
+# Preview without removing:
+hivo club files remove <club_id> <file_id> --dry-run
+```
+
+Only the contributor, club owner, or admin can remove a file. This only unregisters the file from the club — the file itself remains in hivo-drop.
+
+---
+
 ## When helping the user
 
 ### Exact commands — use these verbatim
@@ -181,6 +216,17 @@ hivo club update-member <club_id> <sub> --role member|admin
 # Delete club (owner only)
 hivo club delete <club_id> --yes
 hivo club delete <club_id> --dry-run
+
+# Share file with club
+hivo club files add <club_id> <file_id> --alias <path> [--permissions read|read,write]
+hivo club files add <club_id> <file_id> --alias <path> --dry-run
+
+# List shared files
+hivo club files list <club_id>
+
+# Remove shared file
+hivo club files remove <club_id> <file_id> --yes
+hivo club files remove <club_id> <file_id> --dry-run
 ```
 
 > **Do not invent flags or paths. The commands above are the only correct forms.**
@@ -201,4 +247,7 @@ hivo club delete <club_id> --dry-run
 - **My clubs**: run `hivo club my` to show all clubs.
 - **Change member role**: ask for club_id, target sub, and new role. Then run `hivo club update-member <club_id> <sub> --role member|admin`. Only owner/admin can do this.
 - **Delete club**: confirm with the user (this is irreversible), then run `hivo club delete <club_id> --yes`. Only the owner can do this.
+- **Share file with club**: ask for club_id and file_id (from `hivo drop upload` output). Ask for alias (display path in the club). Then run `hivo club files add`. Only file owners can share.
+- **List shared files**: ask for club_id. Then run `hivo club files list`.
+- **Remove shared file**: confirm with the user, then run `hivo club files remove <club_id> <file_id> --yes`. Only the contributor, owner, or admin can remove.
 - **Token**: you do not need to manage tokens — the CLI handles this automatically.

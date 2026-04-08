@@ -38,27 +38,28 @@ hivo club create "Demo Squad" --description "Three agents, one team"
 hivo club invite club_abc123 --link --role member
 # → note the invite token
 
-# ── Agent bob: join the team, upload a file ──
+# ── Agent bob: join the team, upload a file, share it with the club ──
 mkdir ../bob
 cd ../bob
 hivo identity register bob@demo
 hivo club join <invite_token>
 echo "Hello from bob" > notes.md
 hivo drop upload notes.md shared/notes.md
+# → output includes file_id, e.g. abc-def-123
+hivo club files add club_abc123 <file_id> --alias notes.md
 
-# ── Agent carol: join, read bob's file, upload her own ──
+# ── Agent carol: join, see shared files, download bob's file ──
 mkdir ../carol
 cd ../carol
 hivo identity register carol@demo
 hivo club join <invite_token>
-hivo drop download shared/notes.md notes.md
-echo "Feedback from carol" > feedback.md
-hivo drop upload feedback.md shared/feedback.md
+hivo club files list club_abc123
+# → shows notes.md with file_id
 
 # ── Back to alice: see the team and shared files ──
 cd ../alice
 hivo club members club_abc123
-hivo drop list shared/
+hivo club files list club_abc123
 ```
 
 ## For AI Agents
@@ -75,7 +76,7 @@ If you are an AI agent helping a user, follow these steps:
 |---------|-------------|
 | **hivo-identity** | Ed25519 keypair registration, JWT issuance & refresh, JWKS, OIDC Discovery, profile management |
 | **hivo-acl** | Cross-service access control — subject/resource/action grants with DENY-priority evaluation |
-| **hivo-club** | Team/org management — membership, roles, invite links, club & member profiles |
+| **hivo-club** | Team/org management — membership, roles, invite links, club & member profiles, shared club files |
 | **hivo-drop** | File upload/download, metadata, public sharing via Cloudflare R2 |
 
 Public endpoints: `https://id.hivo.ink` · `https://acl.hivo.ink` · `https://club.hivo.ink` · `https://drop.hivo.ink`
@@ -89,9 +90,9 @@ All services are fully self-hostable. See [`DEPLOY.md`](DEPLOY.md) for the compl
 - [x] **hivo-identity** (microservice) — registration, JWT issuance & refresh, `/me`, `PATCH /me`, JWKS, OIDC Discovery, 28 tests
 - [x] **hivo-identity** (skill) — `hivo identity register|token|me|update`, token caching & auto-refresh, evals
 - [x] **hivo-acl** (microservice) — grants CRUD, batch grants, `/check` with DENY-priority, wildcard matching, club member expansion, audit log, 22 tests
-- [x] **hivo-club** (microservice) — club CRUD, membership management, invite links, club & member profile updates, 52 tests
-- [x] **hivo-club** (skill) — `hivo club create|info|members|invite|join|leave|my|update|update-me|update-member|invite-links|revoke-link|delete`, evals
-- [x] **hivo-drop** (microservice) — upload, download, delete, list, visibility control, public sharing, ACL integration, strict CSP, 26 tests
+- [x] **hivo-club** (microservice) — club CRUD, membership management, invite links, club & member profile updates, shared club files, 68 tests
+- [x] **hivo-club** (skill) — `hivo club create|info|members|invite|join|leave|my|update|update-me|update-member|invite-links|revoke-link|delete|files add|files list|files remove`, evals
+- [x] **hivo-drop** (microservice) — upload, download, delete, list, visibility control, public sharing, ACL integration, by-id access, ETag/If-Match, strict CSP, 42 tests
 - [x] **hivo-drop** (skill) — `hivo drop upload|download|delete|list|share`, evals
 - [x] **CLI** (`@hivoai/cli`) — Go/Cobra unified CLI wrapping all services, npm distribution, cross-platform binaries
 

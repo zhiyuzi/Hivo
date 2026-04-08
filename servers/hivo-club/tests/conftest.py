@@ -3,6 +3,7 @@ Shared fixtures for hivo-club tests.
 
 Strategy:
 - Patch app.auth.get_jwks to return a real Ed25519 test key (no HTTP)
+- Patch app.acl functions with in-memory ACL store
 - Use a temp SQLite DB for each test
 """
 import base64
@@ -48,15 +49,48 @@ def make_token(
     return f"{h}.{p}.{_b64url(sig)}"
 
 
+# ── In-memory ACL ─────────────────────────────────────────────────────────────
+
+class FakeACL:
+    """Simulates hivo-acl grant/check/revoke in memory for club file tests."""
+
+    def __init__(self):
+        # set of (subject, resource, action, effect)
+        self.grants: set[tuple[str, str, str, str]] = set()
+
+    def grant_club_access(self, token: str, club_id: str, file_id: str, permissions: list[str]) -> None:
+        resource = f"drop:file:{file_id}"
+        for action in permissions:
+            self.grants.add((club_id, resource, action, "allow"))
+
+    def revoke_club_access(self, token: str, club_id: str, file_id: str) -> None:
+        resource = f"drop:file:{file_id}"
+        self.grants = {g for g in self.grants if not (g[0] == club_id and g[1] == resource)}
+
+    def check_file_permission(self, token: str, sub: str, file_id: str, action: str) -> bool:
+        resource = f"drop:file:{file_id}"
+        if (sub, resource, action, "deny") in self.grants:
+            return False
+        return (sub, resource, action, "allow") in self.grants
+
+    def add_grant(self, sub: str, file_id: str, action: str, effect: str = "allow") -> None:
+        """Test helper to manually add a grant."""
+        self.grants.add((sub, f"drop:file:{file_id}", action, effect))
+
+
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture()
 def client(tmp_path):
     db_path = str(tmp_path / "club.db")
+    fake_acl = FakeACL()
 
     with mock.patch("app.auth.get_jwks", return_value=[JWK_PUB]), \
          mock.patch("app.auth.settings") as auth_settings, \
-         mock.patch("app.db.settings") as db_settings:
+         mock.patch("app.db.settings") as db_settings, \
+         mock.patch("app.routes.grant_club_access", side_effect=fake_acl.grant_club_access), \
+         mock.patch("app.routes.revoke_club_access", side_effect=fake_acl.revoke_club_access), \
+         mock.patch("app.routes.check_file_permission", side_effect=fake_acl.check_file_permission):
 
         auth_settings.trusted_issuers_list.return_value = [ISSUER]
         auth_settings.trusted_issuers = ISSUER
@@ -68,4 +102,5 @@ def client(tmp_path):
         app = create_app()
 
         with TestClient(app, raise_server_exceptions=True) as c:
+            c._fake_acl = fake_acl
             yield c

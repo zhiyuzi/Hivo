@@ -34,6 +34,12 @@ class UpdateMyMembershipRequest(BaseModel):
     bio: Optional[str] = None
 
 
+class AddFileRequest(BaseModel):
+    file_id: str
+    alias: str
+    permissions: str = "read"
+
+
 # ── Responses ─────────────────────────────────────────────────────────────────
 
 class ClubResponse(BaseModel):
@@ -76,3 +82,14 @@ class MyClubEntry(BaseModel):
     name: str
     role: str
     joined_at: str
+
+
+class ClubFileResponse(BaseModel):
+    id: str
+    club_id: str
+    file_id: str
+    owner_sub: str
+    alias: str
+    permissions: str
+    contributed_by: str
+    added_at: str

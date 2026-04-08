@@ -271,3 +271,205 @@ def test_agent_isolation(client):
     r = client.get("/files/secret.txt",
                    headers={"Authorization": f"Bearer {token_b}"})
     assert r.status_code == 404
+
+
+# ── Upload returns file_id ────────────────────────────────────────────────────
+
+def test_upload_returns_file_id(client):
+    r = client.put(
+        "/files/id-test.txt", content=b"hello",
+        headers={**auth_headers(), "Content-Type": "text/plain"},
+    )
+    assert r.status_code == 201
+    body = r.json()
+    assert "id" in body
+    assert len(body["id"]) == 36  # UUID format
+
+
+def test_upload_overwrite_returns_file_id(client):
+    h = {**auth_headers(), "Content-Type": "text/plain"}
+    r1 = client.put("/files/ow-id.txt", content=b"v1", headers=h)
+    file_id = r1.json()["id"]
+    r2 = client.put("/files/ow-id.txt", content=b"v2", headers=h, params={"overwrite": "true"})
+    assert r2.status_code == 200
+    assert r2.json()["id"] == file_id
+
+
+# ── ETag on GET /files/{path} ─────────────────────────────────────────────────
+
+def test_get_file_etag_header(client):
+    h = {**auth_headers(), "Content-Type": "text/plain"}
+    upload = client.put("/files/etag.txt", content=b"etag-test", headers=h)
+    sha = upload.json()["sha256"]
+
+    r = client.get("/files/etag.txt", headers=auth_headers())
+    assert r.status_code == 200
+    assert r.headers["etag"] == f'"{sha}"'
+
+
+# ── If-Match on PUT /files/{path} ─────────────────────────────────────────────
+
+def test_upload_if_match_success(client):
+    h = {**auth_headers(), "Content-Type": "text/plain"}
+    r1 = client.put("/files/ifm.txt", content=b"v1", headers=h)
+    sha = r1.json()["sha256"]
+
+    r2 = client.put(
+        "/files/ifm.txt", content=b"v2",
+        headers={**h, "if-match": f'"{sha}"'},
+        params={"overwrite": "true"},
+    )
+    assert r2.status_code == 200
+
+
+def test_upload_if_match_mismatch(client):
+    h = {**auth_headers(), "Content-Type": "text/plain"}
+    client.put("/files/ifm2.txt", content=b"v1", headers=h)
+
+    r = client.put(
+        "/files/ifm2.txt", content=b"v2",
+        headers={**h, "if-match": '"wrong_sha256"'},
+        params={"overwrite": "true"},
+    )
+    assert r.status_code == 409
+    assert r.json()["error"] == "etag_mismatch"
+
+
+# ── GET /files/by-id/{file_id} ────────────────────────────────────────────────
+
+def test_get_file_by_id_owner(client):
+    h = {**auth_headers(), "Content-Type": "text/plain"}
+    upload = client.put("/files/byid.txt", content=b"by-id-content", headers=h)
+    file_id = upload.json()["id"]
+
+    r = client.get(f"/files/by-id/{file_id}", headers=auth_headers())
+    assert r.status_code == 200
+    assert r.content == b"by-id-content"
+    assert "etag" in r.headers
+
+
+def test_get_file_by_id_with_acl(client):
+    token_a = make_token(sub="agt_owner_byid")
+    h_a = {"Authorization": f"Bearer {token_a}", "Content-Type": "text/plain"}
+    upload = client.put("/files/shared-byid.txt", content=b"shared", headers=h_a)
+    file_id = upload.json()["id"]
+
+    # Grant read to agt_reader_byid
+    client._fake_acl.add_grant("agt_reader_byid", file_id, "read")
+
+    token_b = make_token(sub="agt_reader_byid")
+    r = client.get(f"/files/by-id/{file_id}", headers={"Authorization": f"Bearer {token_b}"})
+    assert r.status_code == 200
+    assert r.content == b"shared"
+
+
+def test_get_file_by_id_not_found(client):
+    r = client.get("/files/by-id/nonexistent-uuid", headers=auth_headers())
+    assert r.status_code == 404
+
+
+def test_get_file_by_id_no_permission(client):
+    token_a = make_token(sub="agt_owner_noperm")
+    h_a = {"Authorization": f"Bearer {token_a}", "Content-Type": "text/plain"}
+    upload = client.put("/files/noperm-byid.txt", content=b"secret", headers=h_a)
+    file_id = upload.json()["id"]
+
+    token_b = make_token(sub="agt_noaccess")
+    r = client.get(f"/files/by-id/{file_id}", headers={"Authorization": f"Bearer {token_b}"})
+    assert r.status_code == 404
+
+
+def test_get_file_by_id_etag(client):
+    h = {**auth_headers(), "Content-Type": "text/plain"}
+    upload = client.put("/files/byid-etag.txt", content=b"etag-check", headers=h)
+    file_id = upload.json()["id"]
+    sha = upload.json()["sha256"]
+
+    r = client.get(f"/files/by-id/{file_id}", headers=auth_headers())
+    assert r.headers["etag"] == f'"{sha}"'
+
+
+# ── PUT /files/by-id/{file_id} ────────────────────────────────────────────────
+
+def test_put_file_by_id_owner(client):
+    h = {**auth_headers(), "Content-Type": "text/plain"}
+    upload = client.put("/files/put-byid.txt", content=b"v1", headers=h)
+    file_id = upload.json()["id"]
+
+    r = client.put(
+        f"/files/by-id/{file_id}", content=b"v2",
+        headers={**auth_headers(), "Content-Type": "text/plain"},
+    )
+    assert r.status_code == 200
+    assert r.json()["id"] == file_id
+    assert r.json()["size"] == 2
+
+    # Verify content updated
+    dl = client.get(f"/files/by-id/{file_id}", headers=auth_headers())
+    assert dl.content == b"v2"
+
+
+def test_put_file_by_id_with_acl(client):
+    token_a = make_token(sub="agt_owner_putbyid")
+    h_a = {"Authorization": f"Bearer {token_a}", "Content-Type": "text/plain"}
+    upload = client.put("/files/acl-put-byid.txt", content=b"original", headers=h_a)
+    file_id = upload.json()["id"]
+
+    # Grant write to agt_writer
+    client._fake_acl.add_grant("agt_writer", file_id, "write")
+
+    token_b = make_token(sub="agt_writer")
+    r = client.put(
+        f"/files/by-id/{file_id}", content=b"updated",
+        headers={"Authorization": f"Bearer {token_b}", "Content-Type": "text/plain"},
+    )
+    assert r.status_code == 200
+    assert r.json()["size"] == len(b"updated")
+
+
+def test_put_file_by_id_no_permission(client):
+    token_a = make_token(sub="agt_owner_nowrite")
+    h_a = {"Authorization": f"Bearer {token_a}", "Content-Type": "text/plain"}
+    upload = client.put("/files/nowrite-byid.txt", content=b"data", headers=h_a)
+    file_id = upload.json()["id"]
+
+    token_b = make_token(sub="agt_nowrite")
+    r = client.put(
+        f"/files/by-id/{file_id}", content=b"hack",
+        headers={"Authorization": f"Bearer {token_b}", "Content-Type": "text/plain"},
+    )
+    assert r.status_code == 404
+
+
+def test_put_file_by_id_if_match_success(client):
+    h = {**auth_headers(), "Content-Type": "text/plain"}
+    upload = client.put("/files/byid-ifm.txt", content=b"v1", headers=h)
+    file_id = upload.json()["id"]
+    sha = upload.json()["sha256"]
+
+    r = client.put(
+        f"/files/by-id/{file_id}", content=b"v2",
+        headers={**auth_headers(), "Content-Type": "text/plain", "if-match": f'"{sha}"'},
+    )
+    assert r.status_code == 200
+
+
+def test_put_file_by_id_if_match_mismatch(client):
+    h = {**auth_headers(), "Content-Type": "text/plain"}
+    upload = client.put("/files/byid-ifm2.txt", content=b"v1", headers=h)
+    file_id = upload.json()["id"]
+
+    r = client.put(
+        f"/files/by-id/{file_id}", content=b"v2",
+        headers={**auth_headers(), "Content-Type": "text/plain", "if-match": '"wrong"'},
+    )
+    assert r.status_code == 409
+    assert r.json()["error"] == "etag_mismatch"
+
+
+def test_put_file_by_id_not_found(client):
+    r = client.put(
+        "/files/by-id/nonexistent-uuid", content=b"data",
+        headers={**auth_headers(), "Content-Type": "text/plain"},
+    )
+    assert r.status_code == 404

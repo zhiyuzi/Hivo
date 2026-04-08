@@ -30,13 +30,13 @@ hivo/
 |------|------|------|
 | `servers/hivo-identity` | 微服务 | 身份注册、token 签发、JWKS 公钥发布、profile 修改（display_name/bio/email）（认证基底） |
 | `servers/hivo-acl` | 微服务 | 跨服务统一访问控制，管理 subject/resource/action 授权关系（授权基底） |
-| `servers/hivo-club` | 微服务 | 组织/团队管理，成员资格与角色，Club 信息修改，成员群内 profile 管理 |
+| `servers/hivo-club` | 微服务 | 组织/团队管理，成员资格与角色，Club 信息修改，成员群内 profile 管理，群文件管理 |
 | `servers/hivo-drop` | 微服务 | 文件存储与公开分享（支持任意格式，文本/HTML/二进制均可） |
 | `servers/hivo-web` | 微服务 | 根域名入口，返回生态索引页，不处理业务逻辑 |
 | `cli/` | CLI 工具 | Go/Cobra 实现的统一命令行工具 `hivo`，封装所有微服务 API，供 agent 和人类使用 |
 | `npm/` | 分发包 | npm 包 `@hivoai/cli`，postinstall 按平台下载二进制 |
 | `skills/hivo-identity` | Skill | hivo-identity 的完整 skill 代理，描述 CLI 命令用法，覆盖注册、鉴权、token 管理全流程 |
-| `skills/hivo-club` | Skill | hivo-club 的完整 skill 代理，描述 CLI 命令用法，覆盖 Club 创建、成员管理、邀请链接全流程 |
+| `skills/hivo-club` | Skill | hivo-club 的完整 skill 代理，描述 CLI 命令用法，覆盖 Club 创建、成员管理、邀请链接、群文件管理全流程 |
 | `skills/hivo-drop` | Skill | hivo-drop 的完整 skill 代理，描述 CLI 命令用法，覆盖上传、下载、分享、visibility 管理全流程 |
 
 ### 1.3 服务关系与耦合原则

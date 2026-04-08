@@ -6,9 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 
 from .auth import require_auth
+from .acl import check_file_permission, grant_club_access, revoke_club_access
 from .db import get_conn
 from .models import (
+    AddFileRequest,
     AddMemberRequest,
+    ClubFileResponse,
     ClubResponse,
     CreateClubRequest,
     CreateInviteLinkRequest,
@@ -451,6 +454,7 @@ def update_my_membership(club_id: str, req: UpdateMyMembershipRequest, payload: 
 @router.delete("/clubs/{club_id}")
 def dissolve_club(club_id: str, payload: dict = Depends(require_auth)):
     sub = payload["sub"]
+    token = payload.get("_token", "")
 
     with get_conn() as conn:
         club = conn.execute("SELECT owner_sub FROM clubs WHERE club_id = ?", (club_id,)).fetchone()
@@ -460,6 +464,14 @@ def dissolve_club(club_id: str, payload: dict = Depends(require_auth)):
         if club["owner_sub"] != sub:
             return _err(403, "forbidden", "Only the owner can dissolve the club")
 
+        # Revoke ACL grants for all club files
+        club_files = conn.execute(
+            "SELECT file_id FROM club_files WHERE club_id = ?", (club_id,)
+        ).fetchall()
+        for cf in club_files:
+            revoke_club_access(token, club_id, cf["file_id"])
+
+        conn.execute("DELETE FROM club_files WHERE club_id = ?", (club_id,))
         conn.execute("DELETE FROM invite_links WHERE club_id = ?", (club_id,))
         conn.execute("DELETE FROM memberships WHERE club_id = ?", (club_id,))
         conn.execute("DELETE FROM clubs WHERE club_id = ?", (club_id,))
@@ -501,3 +513,135 @@ def internal_member_clubs(sub: str):
             (sub,),
         ).fetchall()
     return [{"club_id": r["club_id"]} for r in rows]
+
+
+# ── Club Files ───────────────────────────────────────────────────────────────
+
+_VALID_PERMISSIONS = {"read", "read,write"}
+
+
+@router.post("/clubs/{club_id}/files")
+def add_club_file(club_id: str, req: AddFileRequest, payload: dict = Depends(require_auth)):
+    sub = payload["sub"]
+    token = payload.get("_token", "")
+
+    if req.permissions not in _VALID_PERMISSIONS:
+        return _err(422, "validation_error", "permissions must be 'read' or 'read,write'")
+
+    alias = req.alias.strip("/")
+    if not alias or ".." in alias.split("/"):
+        return _err(422, "validation_error", "Invalid alias")
+
+    with get_conn() as conn:
+        club = conn.execute("SELECT club_id FROM clubs WHERE club_id = ?", (club_id,)).fetchone()
+        if not club:
+            return _err(404, "not_found", "Club not found")
+
+        me = _get_membership(conn, club_id, sub)
+        if not me:
+            return _err(403, "forbidden", "You are not a member of this club")
+
+        # Verify caller has admin permission on the file (i.e. is the file owner)
+        if not check_file_permission(token, sub, req.file_id, "admin"):
+            return _err(403, "forbidden", "You do not own this file or lack admin permission")
+
+        # Check duplicates
+        existing_alias = conn.execute(
+            "SELECT id FROM club_files WHERE club_id = ? AND alias = ?",
+            (club_id, alias),
+        ).fetchone()
+        if existing_alias:
+            return _err(409, "conflict", f"Alias '{alias}' already exists in this club")
+
+        existing_file = conn.execute(
+            "SELECT id FROM club_files WHERE club_id = ? AND file_id = ?",
+            (club_id, req.file_id),
+        ).fetchone()
+        if existing_file:
+            return _err(409, "conflict", "This file is already registered in this club")
+
+        record_id = str(uuid.uuid4())
+        now = _now_iso()
+        conn.execute(
+            """INSERT INTO club_files
+               (id, club_id, file_id, owner_sub, alias, permissions, contributed_by, added_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (record_id, club_id, req.file_id, sub, alias, req.permissions, sub, now),
+        )
+
+    # Grant club access via ACL
+    perm_list = [p.strip() for p in req.permissions.split(",")]
+    grant_club_access(token, club_id, req.file_id, perm_list)
+
+    return JSONResponse(
+        status_code=201,
+        content=ClubFileResponse(
+            id=record_id, club_id=club_id, file_id=req.file_id,
+            owner_sub=sub, alias=alias, permissions=req.permissions,
+            contributed_by=sub, added_at=now,
+        ).model_dump(),
+    )
+
+
+@router.get("/clubs/{club_id}/files")
+def list_club_files(club_id: str, payload: dict = Depends(require_auth)):
+    sub = payload["sub"]
+
+    with get_conn() as conn:
+        club = conn.execute("SELECT club_id FROM clubs WHERE club_id = ?", (club_id,)).fetchone()
+        if not club:
+            return _err(404, "not_found", "Club not found")
+
+        me = _get_membership(conn, club_id, sub)
+        if not me:
+            return _err(403, "forbidden", "You are not a member of this club")
+
+        rows = conn.execute(
+            "SELECT id, club_id, file_id, owner_sub, alias, permissions, contributed_by, added_at "
+            "FROM club_files WHERE club_id = ? ORDER BY added_at",
+            (club_id,),
+        ).fetchall()
+
+    return {
+        "files": [
+            ClubFileResponse(
+                id=r["id"], club_id=r["club_id"], file_id=r["file_id"],
+                owner_sub=r["owner_sub"], alias=r["alias"], permissions=r["permissions"],
+                contributed_by=r["contributed_by"], added_at=r["added_at"],
+            ).model_dump()
+            for r in rows
+        ]
+    }
+
+
+@router.delete("/clubs/{club_id}/files/{file_id}")
+def remove_club_file(club_id: str, file_id: str, payload: dict = Depends(require_auth)):
+    sub = payload["sub"]
+    token = payload.get("_token", "")
+
+    with get_conn() as conn:
+        club = conn.execute("SELECT owner_sub FROM clubs WHERE club_id = ?", (club_id,)).fetchone()
+        if not club:
+            return _err(404, "not_found", "Club not found")
+
+        me = _get_membership(conn, club_id, sub)
+        if not me:
+            return _err(403, "forbidden", "You are not a member of this club")
+
+        cf = conn.execute(
+            "SELECT id, contributed_by FROM club_files WHERE club_id = ? AND file_id = ?",
+            (club_id, file_id),
+        ).fetchone()
+        if not cf:
+            return _err(404, "not_found", "File not found in this club")
+
+        # Only contributor, club owner, or club admin can remove
+        is_contributor = cf["contributed_by"] == sub
+        is_privileged = me["role"] in ("owner", "admin")
+        if not is_contributor and not is_privileged:
+            return _err(403, "forbidden", "Only the contributor, owner, or admin can remove this file")
+
+        conn.execute("DELETE FROM club_files WHERE id = ?", (cf["id"],))
+
+    revoke_club_access(token, club_id, file_id)
+    return Response(status_code=204)

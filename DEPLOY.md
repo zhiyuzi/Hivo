@@ -87,7 +87,7 @@ Edit each file and fill in your values. Key changes:
 
 - `hivo-identity/.env`: set `ISSUER_URL=https://id.example.com`
 - `hivo-acl/.env`: set `TRUSTED_ISSUERS=https://id.example.com`
-- `hivo-club/.env`: set `TRUSTED_ISSUERS=https://id.example.com`
+- `hivo-club/.env`: set `TRUSTED_ISSUERS=https://id.example.com` and `ACL_URL=https://acl.example.com`
 - `hivo-drop/.env`: set `TRUSTED_ISSUERS=https://id.example.com` and fill in R2 credentials
 - `hivo-web/.env`: set `REPO_URL` to your fork URL if applicable
 

@@ -10,6 +10,7 @@ Club 是"容器"——它不是消息系统，不是文件系统，只管理"谁
 
 依赖：
 - hivo-identity（token 验证）
+- hivo-acl（群文件权限管理）
 
 ---
 
@@ -351,4 +352,84 @@ hivo club revoke-link <club_id> <token>
 **删除 Club：**
 ```bash
 hivo club delete <club_id> [--yes] [--dry-run]
+```
+
+---
+
+## 群文件（Club Files）
+
+Club 可以注册 Drop 文件到群文件空间，实现群成员共享文件。文件物理上仍归上传者所有，存在 Drop 里。Club 维护一个文件注册表，记录"哪些文件属于这个群"。
+
+### 权限模型
+
+- 分享者注册文件到群时，选择开放 `read`（默认）或 `read,write`
+- Club 调 ACL 给 `club_{club_id}` 授予对应权限
+- `delete` / `admin` 不通过群文件授予，始终只有文件所有者持有
+
+### 数据模型
+
+**club_files 表**
+
+```sql
+CREATE TABLE club_files (
+    id              TEXT PRIMARY KEY,
+    club_id         TEXT NOT NULL REFERENCES clubs(club_id),
+    file_id         TEXT NOT NULL,
+    owner_sub       TEXT NOT NULL,
+    alias           TEXT NOT NULL,
+    permissions     TEXT NOT NULL DEFAULT 'read',
+    contributed_by  TEXT NOT NULL,
+    added_at        TEXT NOT NULL,
+
+    UNIQUE(club_id, alias),
+    UNIQUE(club_id, file_id)
+);
+```
+
+### API 端点
+
+**`POST /clubs/{club_id}/files`** — 注册文件到群
+
+请求体：`{"file_id": "...", "alias": "docs/report.html", "permissions": "read"}`
+
+- 调用者必须是群成员
+- 调用者必须拥有文件的 admin 权限（即文件所有者）
+- permissions 只允许 `read` 或 `read,write`
+- 成功后调 ACL 给 `club_id` 授予对应权限
+
+**`GET /clubs/{club_id}/files`** — 列出群文件
+
+- 调用者必须是群成员
+- 返回 `{"files": [...]}`
+
+**`DELETE /clubs/{club_id}/files/{file_id}`** — 移除群文件
+
+- 只有贡献者、club owner 或 admin 可以移除
+- 移除后撤销 ACL 中该 club 对该文件的所有授权
+
+### 级联删除
+
+解散 Club 时，自动清理所有 club_files 记录并撤销对应 ACL 授权。
+
+### CLI 命令
+
+**注册文件到群：**
+```bash
+hivo club files add <club_id> <file_id> --alias <path> [--permissions read|read,write] [--dry-run]
+```
+
+**列出群文件：**
+```bash
+hivo club files list <club_id>
+```
+
+**移除群文件：**
+```bash
+hivo club files remove <club_id> <file_id> [--yes] [--dry-run]
+```
+
+### 配置项
+
+```
+ACL_URL=https://acl.hivo.ink
 ```

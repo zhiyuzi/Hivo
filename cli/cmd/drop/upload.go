@@ -104,7 +104,8 @@ Examples:
 			if format == "json" {
 				fmt.Println(string(raw))
 			} else {
-				fmt.Printf("Uploaded: %s (%d bytes)\n", remotePath, stat.Size())
+				fileID, _ := result["id"].(string)
+				fmt.Printf("Uploaded: %s (%d bytes, id: %s)\n", remotePath, stat.Size(), fileID)
 			}
 			return nil
 		},

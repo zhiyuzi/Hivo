@@ -524,3 +524,217 @@ def test_my_clubs_empty(client):
     r = client.get("/me/clubs", headers=auth(other_token))
     assert r.status_code == 200
     assert r.json()["clubs"] == []
+
+
+# ── Club Files ────────────────────────────────────────────────────────────────
+
+FILE_ID = "test-file-uuid-001"
+
+
+def _add_file(client, club_id, file_id=FILE_ID, alias="notes.md", permissions="read", token=None):
+    """Helper: add a file to a club. Caller must have admin grant on the file."""
+    return client.post(
+        f"/clubs/{club_id}/files",
+        json={"file_id": file_id, "alias": alias, "permissions": permissions},
+        headers=auth(token),
+    )
+
+
+def test_add_file_to_club(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    # Grant admin on the file to the default user
+    client._fake_acl.add_grant(SUB, FILE_ID, "admin")
+
+    r = _add_file(client, club_id)
+    assert r.status_code == 201
+    data = r.json()
+    assert data["club_id"] == club_id
+    assert data["file_id"] == FILE_ID
+    assert data["alias"] == "notes.md"
+    assert data["permissions"] == "read"
+    assert data["contributed_by"] == SUB
+
+
+def test_add_file_read_write(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client._fake_acl.add_grant(SUB, FILE_ID, "admin")
+
+    r = _add_file(client, club_id, permissions="read,write")
+    assert r.status_code == 201
+    assert r.json()["permissions"] == "read,write"
+    # Verify ACL grants were created for both read and write
+    assert (club_id, f"drop:file:{FILE_ID}", "read", "allow") in client._fake_acl.grants
+    assert (club_id, f"drop:file:{FILE_ID}", "write", "allow") in client._fake_acl.grants
+
+
+def test_add_file_invalid_permissions(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client._fake_acl.add_grant(SUB, FILE_ID, "admin")
+
+    r = _add_file(client, club_id, permissions="read,write,delete")
+    assert r.status_code == 422
+    assert r.json()["error"] == "validation_error"
+
+
+def test_add_file_not_member(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+
+    outsider = make_token(sub="agt_outsider_file")
+    client._fake_acl.add_grant("agt_outsider_file", FILE_ID, "admin")
+
+    r = _add_file(client, club_id, token=outsider)
+    assert r.status_code == 403
+
+
+def test_add_file_not_file_owner(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    # No admin grant for SUB on this file
+
+    r = _add_file(client, club_id)
+    assert r.status_code == 403
+
+
+def test_add_file_duplicate_alias(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client._fake_acl.add_grant(SUB, FILE_ID, "admin")
+    client._fake_acl.add_grant(SUB, "file-2", "admin")
+
+    _add_file(client, club_id)
+    r = _add_file(client, club_id, file_id="file-2", alias="notes.md")
+    assert r.status_code == 409
+
+
+def test_add_file_duplicate_file_id(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client._fake_acl.add_grant(SUB, FILE_ID, "admin")
+
+    _add_file(client, club_id)
+    r = _add_file(client, club_id, alias="other.md")
+    assert r.status_code == 409
+
+
+def test_add_file_invalid_alias(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client._fake_acl.add_grant(SUB, FILE_ID, "admin")
+
+    r = _add_file(client, club_id, alias="../etc/passwd")
+    assert r.status_code == 422
+
+
+def test_list_club_files(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client._fake_acl.add_grant(SUB, "file-a", "admin")
+    client._fake_acl.add_grant(SUB, "file-b", "admin")
+
+    _add_file(client, club_id, file_id="file-a", alias="a.md")
+    _add_file(client, club_id, file_id="file-b", alias="b.md")
+
+    r = client.get(f"/clubs/{club_id}/files", headers=auth())
+    assert r.status_code == 200
+    files = r.json()["files"]
+    assert len(files) == 2
+    aliases = [f["alias"] for f in files]
+    assert "a.md" in aliases
+    assert "b.md" in aliases
+
+
+def test_list_club_files_empty(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+
+    r = client.get(f"/clubs/{club_id}/files", headers=auth())
+    assert r.status_code == 200
+    assert r.json()["files"] == []
+
+
+def test_list_club_files_not_member(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+
+    outsider = make_token(sub="agt_outsider_list")
+    r = client.get(f"/clubs/{club_id}/files", headers=auth(outsider))
+    assert r.status_code == 403
+
+
+def test_remove_club_file_by_contributor(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client._fake_acl.add_grant(SUB, FILE_ID, "admin")
+
+    _add_file(client, club_id)
+    r = client.delete(f"/clubs/{club_id}/files/{FILE_ID}", headers=auth())
+    assert r.status_code == 204
+
+    # Verify file is gone
+    r = client.get(f"/clubs/{club_id}/files", headers=auth())
+    assert r.json()["files"] == []
+
+    # Verify ACL grants were revoked
+    resource = f"drop:file:{FILE_ID}"
+    club_grants = [g for g in client._fake_acl.grants if g[0] == club_id and g[1] == resource]
+    assert len(club_grants) == 0
+
+
+def test_remove_club_file_by_admin(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+
+    # Member adds a file
+    member_sub = "agt_member_file"
+    client.post(f"/clubs/{club_id}/members", json={"sub": member_sub, "role": "member"}, headers=auth())
+    member_token = make_token(sub=member_sub)
+    client._fake_acl.add_grant(member_sub, FILE_ID, "admin")
+    _add_file(client, club_id, token=member_token)
+
+    # Owner (who is also admin-level) removes it
+    r = client.delete(f"/clubs/{club_id}/files/{FILE_ID}", headers=auth())
+    assert r.status_code == 204
+
+
+def test_remove_club_file_member_forbidden(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+
+    # Owner adds a file
+    client._fake_acl.add_grant(SUB, FILE_ID, "admin")
+    _add_file(client, club_id)
+
+    # Regular member tries to remove it
+    member_sub = "agt_member_noremove"
+    client.post(f"/clubs/{club_id}/members", json={"sub": member_sub, "role": "member"}, headers=auth())
+    member_token = make_token(sub=member_sub)
+
+    r = client.delete(f"/clubs/{club_id}/files/{FILE_ID}", headers=auth(member_token))
+    assert r.status_code == 403
+
+
+def test_remove_club_file_not_found(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+
+    r = client.delete(f"/clubs/{club_id}/files/nonexistent", headers=auth())
+    assert r.status_code == 404
+
+
+def test_dissolve_club_cascades_files(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    client._fake_acl.add_grant(SUB, FILE_ID, "admin")
+    _add_file(client, club_id)
+
+    r = client.delete(f"/clubs/{club_id}", headers=auth())
+    assert r.status_code == 204
+
+    # Verify ACL grants were revoked
+    resource = f"drop:file:{FILE_ID}"
+    club_grants = [g for g in client._fake_acl.grants if g[0] == club_id and g[1] == resource]
+    assert len(club_grants) == 0

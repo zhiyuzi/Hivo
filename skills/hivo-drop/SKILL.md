@@ -27,6 +27,8 @@ hivo drop upload report.html docs/report.html --dry-run
 
 `<remote_path>` is the logical path inside hivo-drop (e.g. `docs/report.html`). Content-Type is detected from the file extension automatically.
 
+Upload output includes a `file_id` (the `id` field in JSON mode, or shown in text mode). This ID is needed when sharing files with a club via `hivo club files add`.
+
 ---
 
 ### Download a file

@@ -103,7 +103,9 @@ def require_auth(authorization: Optional[str] = Header(default=None)) -> dict:
         )
     token = authorization[7:]
     try:
-        return verify_token(token)
+        payload = verify_token(token)
+        payload["_token"] = token
+        return payload
     except ValueError:
         raise HTTPException(
             status_code=401,
