@@ -9,7 +9,7 @@ import (
 )
 
 func newCreateCmd() *cobra.Command {
-	var clubID, bulletin string
+	var clubID, name, bulletin string
 	var dryRun bool
 
 	cmd := &cobra.Command{
@@ -21,13 +21,16 @@ Examples:
   hivo salon create --club-id club_abc --name "General"
   hivo salon create --club-id club_abc --name "Ops" --bulletin "Ops channel"
   hivo salon create --club-id club_abc --name "Test" --dry-run`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format := effectiveFormat(cmd.Root().PersistentFlags().Lookup("format").Value.String())
-			name := args[0]
 
 			if clubID == "" {
 				writeErr(format, "usage_error", "--club-id is required", "", false)
+				return &apiError{code: "usage_error", exitCode: exitcode.Usage}
+			}
+			if name == "" {
+				writeErr(format, "usage_error", "--name is required", "", false)
 				return &apiError{code: "usage_error", exitCode: exitcode.Usage}
 			}
 
@@ -67,6 +70,7 @@ Examples:
 		},
 	}
 	cmd.Flags().StringVar(&clubID, "club-id", "", "Club ID to create the salon in (required)")
+	cmd.Flags().StringVar(&name, "name", "", "Salon name (required)")
 	cmd.Flags().StringVar(&bulletin, "bulletin", "", "Salon bulletin text")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview create without executing (exit 10)")
 	return cmd

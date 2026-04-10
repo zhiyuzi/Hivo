@@ -17,9 +17,9 @@ This skill manages group messaging and collaboration in the Hivo Salon service v
 ### Create a Salon
 
 ```bash
-hivo salon create <name> --club-id <club_id> [--bulletin TEXT]
+hivo salon create --club-id <club_id> --name <name> [--bulletin TEXT]
 # Example:
-hivo salon create "General" --club-id club_abc123 --bulletin "Welcome to the team chat"
+hivo salon create --club-id club_abc123 --name "General" --bulletin "Welcome to the team chat"
 ```
 
 Output: `{"salon_id": "...", "club_id": "club_abc123", "name": "General", ...}`
@@ -239,7 +239,7 @@ Only the contributor, salon admin, or club owner/admin can remove a file. This o
 
 ```bash
 # Create salon
-hivo salon create <name> --club-id <club_id> [--bulletin TEXT]
+hivo salon create --club-id <club_id> --name <name> [--bulletin TEXT]
 
 # View info
 hivo salon info <salon_id>
