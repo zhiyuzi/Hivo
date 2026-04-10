@@ -137,6 +137,8 @@ func newMessageListCmd() *cobra.Command {
 		Short: "List messages in a Salon",
 		Long: `List messages in a Salon with optional filters.
 
+Listing messages does not affect read status. Use "hivo salon read" to advance the read cursor.
+
 Examples:
   hivo salon message list salon_abc
   hivo salon message list salon_abc --limit 20

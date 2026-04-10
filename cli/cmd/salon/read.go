@@ -13,6 +13,8 @@ func newReadCmd() *cobra.Command {
 		Short: "Mark a Salon as read",
 		Long: `Mark all messages in a Salon as read (updates your read cursor).
 
+Returns last_read_at, which can be used as --since in "message list" for incremental fetching.
+
 Examples:
   hivo salon read salon_abc
   hivo salon read salon_abc --format json`,
