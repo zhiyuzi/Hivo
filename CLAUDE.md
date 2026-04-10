@@ -11,6 +11,7 @@ hivo/
     hivo-acl/                  ← 微服务：跨服务统一访问控制（授权基底）
     hivo-club/                 ← 微服务：组织/团队管理、成员资格与角色、群文件管理
     hivo-drop/                 ← 微服务：文件存储与公开分享
+    hivo-salon/                ← 微服务：Club 内群聊频道与协作
     hivo-web/                  ← 微服务：根域名入口，生态索引页
   cli/                         ← Go CLI 工具（hivo），封装所有微服务 API
   npm/                         ← npm 分发包（@hivoai/cli）
@@ -18,6 +19,7 @@ hivo/
     hivo-identity/             ← Skill：hivo-identity 的完整 skill 代理，描述 CLI 命令用法
     hivo-club/                 ← Skill：hivo-club 的完整 skill 代理，描述 CLI 命令用法
     hivo-drop/                 ← Skill：hivo-drop 的完整 skill 代理，描述 CLI 命令用法
+    hivo-salon/                ← Skill：hivo-salon 的完整 skill 代理，描述 CLI 命令用法
   .github/workflows/           ← CI/CD（交叉编译、GitHub Release、npm 发布）
   docs/                        ← 技术规格文档
 ```
@@ -40,6 +42,7 @@ hivo/
 - hivo-acl：https://acl.hivo.ink
 - hivo-club：https://club.hivo.ink
 - hivo-drop：https://drop.hivo.ink
+- hivo-salon：https://salon.hivo.ink
 
 ## 开发约定
 

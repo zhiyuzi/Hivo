@@ -11,6 +11,7 @@ This guide walks through deploying all five Hivo services on a Ubuntu server.
 | `acl.example.com` | acl subdomain | hivo-acl |
 | `club.example.com` | club subdomain | hivo-club |
 | `drop.example.com` | drop subdomain | hivo-drop |
+| `salon.example.com` | salon subdomain | hivo-salon |
 | `YOUR_SERVER_USER` | `ubuntu` | SSH login user |
 
 ---
@@ -31,6 +32,7 @@ This guide walks through deploying all five Hivo services on a Ubuntu server.
 | hivo-drop | 8002 |
 | hivo-club | 8003 |
 | hivo-acl | 8004 |
+| hivo-salon | 8005 |
 
 Adjust if any ports are already in use on your server (`sudo ss -tlnp`).
 
@@ -61,6 +63,7 @@ cd /opt/hivo/servers/hivo-identity && uv sync
 cd /opt/hivo/servers/hivo-acl       && uv sync
 cd /opt/hivo/servers/hivo-club      && uv sync
 cd /opt/hivo/servers/hivo-drop      && uv sync
+cd /opt/hivo/servers/hivo-salon     && uv sync
 cd /opt/hivo/servers/hivo-web       && uv sync
 ```
 
@@ -71,6 +74,7 @@ mkdir -p /opt/hivo/servers/hivo-identity/data
 mkdir -p /opt/hivo/servers/hivo-acl/data
 mkdir -p /opt/hivo/servers/hivo-club/data
 mkdir -p /opt/hivo/servers/hivo-drop/data
+mkdir -p /opt/hivo/servers/hivo-salon/data
 ```
 
 ### 5. Create .env files
@@ -80,6 +84,7 @@ cp /opt/hivo/servers/hivo-identity/.env.example /opt/hivo/servers/hivo-identity/
 cp /opt/hivo/servers/hivo-acl/.env.example       /opt/hivo/servers/hivo-acl/.env
 cp /opt/hivo/servers/hivo-club/.env.example      /opt/hivo/servers/hivo-club/.env
 cp /opt/hivo/servers/hivo-drop/.env.example      /opt/hivo/servers/hivo-drop/.env
+cp /opt/hivo/servers/hivo-salon/.env.example    /opt/hivo/servers/hivo-salon/.env
 cp /opt/hivo/servers/hivo-web/.env.example       /opt/hivo/servers/hivo-web/.env
 ```
 
@@ -89,6 +94,7 @@ Edit each file and fill in your values. Key changes:
 - `hivo-acl/.env`: set `TRUSTED_ISSUERS=https://id.example.com`
 - `hivo-club/.env`: set `TRUSTED_ISSUERS=https://id.example.com` and `ACL_URL=https://acl.example.com`
 - `hivo-drop/.env`: set `TRUSTED_ISSUERS=https://id.example.com` and fill in R2 credentials
+- `hivo-salon/.env`: set `TRUSTED_ISSUERS=https://id.example.com`, `ACL_URL=https://acl.example.com`, and `CLUB_URL=https://club.example.com`
 - `hivo-web/.env`: set `REPO_URL` to your fork URL if applicable
 
 ### 6. Create systemd services
@@ -161,6 +167,23 @@ EnvironmentFile=/opt/hivo/servers/hivo-acl/.env
 WantedBy=multi-user.target
 ```
 
+**`/etc/systemd/system/hivo-salon.service`**:
+```ini
+[Unit]
+Description=hivo-salon
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/hivo/servers/hivo-salon
+ExecStart=/opt/hivo/servers/hivo-salon/.venv/bin/gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 2 --bind 127.0.0.1:8005
+Restart=always
+User=YOUR_SERVER_USER
+EnvironmentFile=/opt/hivo/servers/hivo-salon/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
 **`/etc/systemd/system/hivo-web.service`**:
 ```ini
 [Unit]
@@ -180,7 +203,7 @@ WantedBy=multi-user.target
 Enable and start:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now hivo-identity hivo-acl hivo-club hivo-drop hivo-web
+sudo systemctl enable --now hivo-identity hivo-acl hivo-club hivo-drop hivo-salon hivo-web
 ```
 
 ### 7. Configure nginx
@@ -220,6 +243,9 @@ server {
 server {
     listen 80;
     server_name club.example.com;
+    location /internal/ {
+        return 403;
+    }
     location / {
         proxy_pass http://127.0.0.1:8003;
         proxy_set_header Host $host;
@@ -230,8 +256,24 @@ server {
 server {
     listen 80;
     server_name acl.example.com;
+    location /internal/ {
+        return 403;
+    }
     location / {
         proxy_pass http://127.0.0.1:8004;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+server {
+    listen 80;
+    server_name salon.example.com;
+    location /internal/ {
+        return 403;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:8005;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
@@ -246,7 +288,7 @@ sudo nginx -t && sudo systemctl reload nginx
 ### 8. Issue SSL certificates
 
 ```bash
-sudo certbot --nginx -d example.com -d id.example.com -d acl.example.com -d club.example.com -d drop.example.com
+sudo certbot --nginx -d example.com -d id.example.com -d acl.example.com -d club.example.com -d drop.example.com -d salon.example.com
 ```
 
 ### 9. Verify
@@ -257,9 +299,10 @@ curl https://id.example.com/health
 curl https://acl.example.com/health
 curl https://club.example.com/health
 curl https://drop.example.com/health
+curl https://salon.example.com/health
 ```
 
-All five should return `{"status":"ok"}`.
+All six should return `{"status":"ok"}`.
 
 ---
 
@@ -273,7 +316,7 @@ cd servers/hivo-identity && uv sync
 cd servers/hivo-drop      && uv sync
 cd servers/hivo-web       && uv sync
 
-sudo systemctl restart hivo-identity hivo-acl hivo-club hivo-drop hivo-web
+sudo systemctl restart hivo-identity hivo-acl hivo-club hivo-drop hivo-salon hivo-web
 ```
 
 ---

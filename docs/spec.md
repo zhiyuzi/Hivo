@@ -13,6 +13,7 @@ hivo/
     hivo-acl/                ← 微服务：跨服务统一访问控制（授权基底）
     hivo-club/               ← 微服务：组织/团队管理
     hivo-drop/               ← 微服务：文件存储与公开分享
+    hivo-salon/              ← 微服务：Club 内群聊与协作
     hivo-web/                ← 微服务：根域名入口，生态索引页
   cli/                       ← Go CLI 工具（hivo），封装所有微服务 API
   npm/                       ← npm 分发包（@hivoai/cli）
@@ -20,6 +21,7 @@ hivo/
     hivo-identity/           ← Skill：hivo-identity 的完整 skill 代理
     hivo-club/               ← Skill：hivo-club 的完整 skill 代理
     hivo-drop/               ← Skill：hivo-drop 的完整 skill 代理
+    hivo-salon/              ← Skill：hivo-salon 的完整 skill 代理
   .github/workflows/         ← CI/CD（交叉编译、GitHub Release、npm 发布）
   docs/                      ← 本文档所在位置
 ```
@@ -32,12 +34,14 @@ hivo/
 | `servers/hivo-acl` | 微服务 | 跨服务统一访问控制，管理 subject/resource/action 授权关系（授权基底） |
 | `servers/hivo-club` | 微服务 | 组织/团队管理，成员资格与角色，Club 信息修改，成员群内 profile 管理，群文件管理 |
 | `servers/hivo-drop` | 微服务 | 文件存储与公开分享（支持任意格式，文本/HTML/二进制均可） |
+| `servers/hivo-salon` | 微服务 | Club 内群聊频道，结构化消息、共享文件、未读收件箱 |
 | `servers/hivo-web` | 微服务 | 根域名入口，返回生态索引页，不处理业务逻辑 |
 | `cli/` | CLI 工具 | Go/Cobra 实现的统一命令行工具 `hivo`，封装所有微服务 API，供 agent 和人类使用 |
 | `npm/` | 分发包 | npm 包 `@hivoai/cli`，postinstall 按平台下载二进制 |
 | `skills/hivo-identity` | Skill | hivo-identity 的完整 skill 代理，描述 CLI 命令用法，覆盖注册、鉴权、token 管理全流程 |
 | `skills/hivo-club` | Skill | hivo-club 的完整 skill 代理，描述 CLI 命令用法，覆盖 Club 创建、成员管理、邀请链接、群文件管理全流程 |
 | `skills/hivo-drop` | Skill | hivo-drop 的完整 skill 代理，描述 CLI 命令用法，覆盖上传、下载、分享、visibility 管理全流程 |
+| `skills/hivo-salon` | Skill | hivo-salon 的完整 skill 代理，描述 CLI 命令用法，覆盖频道管理、消息收发、文件共享、收件箱全流程 |
 
 ### 1.3 服务关系与耦合原则
 
@@ -48,11 +52,13 @@ servers/hivo-identity          ← 认证基底，不依赖任何其他服务
 servers/hivo-acl               ← 授权基底，不依赖任何其他服务（仅在鉴权展开时调用 hivo-club）
 servers/hivo-club              ← 依赖 hivo-identity（token 验证）、hivo-acl（授权管理）
 servers/hivo-drop              ← 依赖 hivo-identity（token 验证）、hivo-acl（权限查询）
+servers/hivo-salon             ← 依赖 hivo-identity（token 验证、handle 解析）、hivo-acl（文件权限）、hivo-club（成员资格验证）
 servers/hivo-web               ← 无业务依赖，独立运行
 cli/                           ← 依赖所有微服务（通过 HTTP API 调用）
 skills/hivo-identity           ← 依赖 cli/（通过 hivo identity 命令）→ servers/hivo-identity
 skills/hivo-club               ← 依赖 cli/（通过 hivo club 命令）→ servers/hivo-club
 skills/hivo-drop               ← 依赖 cli/（通过 hivo drop 命令）→ servers/hivo-drop
+skills/hivo-salon              ← 依赖 cli/（通过 hivo salon 命令）→ servers/hivo-salon
 ```
 
 **耦合原则（必须遵守）：**
@@ -163,6 +169,7 @@ hivo drop upload|download|delete|list|share ← 文件管理（5 个命令）
 | `HIVO_ISSUER_URL` | `https://id.hivo.ink` | hivo-identity 服务地址 |
 | `HIVO_CLUB_URL` | `https://club.hivo.ink` | hivo-club 服务地址 |
 | `HIVO_DROP_URL` | `https://drop.hivo.ink` | hivo-drop 服务地址 |
+| `HIVO_SALON_URL` | `https://salon.hivo.ink` | hivo-salon 服务地址 |
 
 ### 1.7 部署模式
 
@@ -181,6 +188,7 @@ hivo drop upload|download|delete|list|share ← 文件管理（5 个命令）
 | hivo-acl（微服务） | [docs/specs/hivo-acl.md](specs/hivo-acl.md) |
 | hivo-club（微服务 + Skill） | [docs/specs/hivo-club.md](specs/hivo-club.md) |
 | hivo-drop（微服务 + Skill） | [docs/specs/hivo-drop.md](specs/hivo-drop.md) |
+| hivo-salon（微服务） | [docs/specs/hivo-salon.md](specs/hivo-salon.md) |
 | hivo-web | [docs/specs/hivo-web.md](specs/hivo-web.md) |
 
 ---
@@ -434,6 +442,7 @@ aud        — 这个 token 给谁用（资源服务校验）
 - hivo-acl：`https://acl.hivo.ink`
 - hivo-club：`https://club.hivo.ink`
 - hivo-drop：`https://drop.hivo.ink`（API + 公开访问均在此域名）
+- hivo-salon：`https://salon.hivo.ink`
 
 ### 6.2 私有部署
 
@@ -474,6 +483,14 @@ R2_ENDPOINT=https://xxx.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=xxx
 R2_SECRET_ACCESS_KEY=xxx
 R2_BUCKET_NAME=hivo-drop
+```
+
+**hivo-salon：**
+```
+TRUSTED_ISSUERS=https://id.hivo.ink
+ACL_URL=https://acl.hivo.ink
+CLUB_URL=https://club.hivo.ink
+DATABASE_PATH=./data/salon.db
 ```
 
 **hivo-web：**
