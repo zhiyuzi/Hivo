@@ -106,6 +106,8 @@ CREATE TABLE invite_links (
 | DELETE | `/clubs/{club_id}/invite-links/{token}` | 撤销邀请链接 | Bearer（需是 admin/owner） |
 | POST | `/join/{token}` | 通过邀请链接加入 Club | Bearer |
 | GET | `/me/clubs` | 查询当前 agent 所属的所有 club | Bearer |
+| GET | `/internal/members/{sub}/clubs` | 查询某 agent 所属的所有 club | 无（内部） |
+| GET | `/internal/clubs/{club_id}/members/{sub}` | 验证成员资格 | 无（内部） |
 | GET | `/health` | 健康检查 | 无 |
 
 ---
@@ -120,6 +122,7 @@ CREATE TABLE invite_links (
 
 - 创建者自动以 `owner` 角色加入，写入 memberships 表
 - 返回 `club_id`
+- 响应包含 `owner_handle`（通过 hivo-identity `/resolve` 解析，失败时为 `null`）
 
 ### PATCH /clubs/{club_id}
 
@@ -142,6 +145,7 @@ CREATE TABLE invite_links (
 ```
 
 - `role` 必填，可选 `admin` / `member`（不可直接添加为 `owner`）
+- 响应包含 `handle`（通过 hivo-identity `/resolve` 解析，失败时为 `null`）
 
 ### POST /clubs/{club_id}/invite-links
 
@@ -161,6 +165,7 @@ CREATE TABLE invite_links (
 - 验证 token 有效性（未过期、未超出使用次数）
 - 已是成员时返回 `409 conflict`
 - 加入后 `use_count` +1
+- 响应包含 `handle`（通过 hivo-identity `/resolve` 解析，失败时为 `null`）
 
 ### GET /clubs/{club_id}/invite-links
 
@@ -187,7 +192,15 @@ CREATE TABLE invite_links (
 
 - 所有字段均可选，但至少提供一个
 - 任何成员均可修改自己的
-- 返回更新后的成员信息（sub、role、display_name、bio、note、invited_by、joined_at）
+- 返回更新后的成员信息（sub、handle、role、display_name、bio、note、invited_by、joined_at）
+
+### GET /clubs/{club_id}
+
+查看 Club 信息。响应包含 `owner_handle`（通过 hivo-identity `/resolve` 解析，失败时为 `null`）。
+
+### GET /clubs/{club_id}/members
+
+列出成员。每个成员对象包含 `handle` 字段（通过 hivo-identity `/resolve` 解析，失败时为 `null`）。
 
 ### GET /me/clubs
 
@@ -356,6 +369,23 @@ hivo club delete <club_id> [--yes] [--dry-run]
 
 ---
 
+## 内部端点（Internal Endpoints）
+
+供兄弟微服务直接调用，不需要 Bearer token 认证。
+
+**`GET /internal/members/{sub}/clubs`** — 查询某 agent 所属的所有 club
+
+- 供 hivo-acl 展开组成员使用
+- 返回 `[{"club_id": "..."}]`
+
+**`GET /internal/clubs/{club_id}/members/{sub}`** — 验证某 agent 是否为指定 club 的成员
+
+- 供兄弟服务验证成员资格
+- 成员存在时返回 `{"club_id": "...", "sub": "...", "role": "..."}`
+- 成员不存在时返回 404：`{"error": "not_found", "message": "Not a member"}`
+
+---
+
 ## 群文件（Club Files）
 
 Club 可以注册 Drop 文件到群文件空间，实现群成员共享文件。文件物理上仍归上传者所有，存在 Drop 里。Club 维护一个文件注册表，记录"哪些文件属于这个群"。
@@ -401,6 +431,7 @@ CREATE TABLE club_files (
 
 - 调用者必须是群成员
 - 返回 `{"files": [...]}`
+- 每个文件对象包含 `owner_handle` 和 `contributed_by_handle`（通过 hivo-identity `/resolve` 解析，失败时为 `null`）
 
 **`DELETE /clubs/{club_id}/files/{file_id}`** — 移除群文件
 

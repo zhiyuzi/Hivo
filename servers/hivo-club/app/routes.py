@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from .auth import require_auth
 from .acl import check_file_permission, grant_club_access, revoke_club_access
 from .db import get_conn
+from .identity import resolve_handle, resolve_handles
 from .models import (
     AddFileRequest,
     AddMemberRequest,
@@ -90,7 +91,8 @@ def create_club(req: CreateClubRequest, payload: dict = Depends(require_auth)):
         status_code=201,
         content=ClubResponse(
             club_id=club_id, name=req.name, description=req.description,
-            owner_sub=sub, created_at=now, updated_at=now,
+            owner_sub=sub, owner_handle=resolve_handle(sub),
+            created_at=now, updated_at=now,
         ).model_dump(),
     )
 
@@ -105,7 +107,8 @@ def get_club(club_id: str, payload: dict = Depends(require_auth)):
         return _err(404, "not_found", "Club not found")
     return ClubResponse(
         club_id=row["club_id"], name=row["name"], description=row["description"],
-        owner_sub=row["owner_sub"], created_at=row["created_at"], updated_at=row["updated_at"],
+        owner_sub=row["owner_sub"], owner_handle=resolve_handle(row["owner_sub"]),
+        created_at=row["created_at"], updated_at=row["updated_at"],
     )
 
 
@@ -128,9 +131,12 @@ def list_members(club_id: str, payload: dict = Depends(require_auth)):
             (club_id,),
         ).fetchall()
 
+    subs = [r["sub"] for r in rows]
+    handles = resolve_handles(subs)
+
     return {
         "members": [
-            MemberResponse(**dict(r)).model_dump()
+            MemberResponse(**dict(r), handle=handles.get(r["sub"])).model_dump()
             for r in rows
         ]
     }
@@ -167,7 +173,7 @@ def add_member(club_id: str, req: AddMemberRequest, payload: dict = Depends(requ
         )
         return JSONResponse(
             status_code=201,
-            content={"sub": req.sub, "role": req.role},
+            content={"sub": req.sub, "handle": resolve_handle(req.sub), "role": req.role},
         )
 
 
@@ -298,7 +304,7 @@ def join_club(token: str, payload: dict = Depends(require_auth)):
 
     return JSONResponse(
         status_code=201,
-        content=JoinResponse(club_id=club_id, sub=sub, role=link["role"]).model_dump(),
+        content=JoinResponse(club_id=club_id, sub=sub, handle=resolve_handle(sub), role=link["role"]).model_dump(),
     )
 
 
@@ -515,6 +521,19 @@ def internal_member_clubs(sub: str):
     return [{"club_id": r["club_id"]} for r in rows]
 
 
+@router.get("/internal/clubs/{club_id}/members/{sub}")
+def internal_check_membership(club_id: str, sub: str):
+    """Internal endpoint for sibling services to verify club membership."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT role FROM memberships WHERE club_id = ? AND sub = ?",
+            (club_id, sub),
+        ).fetchone()
+    if not row:
+        return _err(404, "not_found", "Not a member")
+    return {"club_id": club_id, "sub": sub, "role": row["role"]}
+
+
 # ── Club Files ───────────────────────────────────────────────────────────────
 
 _VALID_PERMISSIONS = {"read", "read,write"}
@@ -577,8 +596,10 @@ def add_club_file(club_id: str, req: AddFileRequest, payload: dict = Depends(req
         status_code=201,
         content=ClubFileResponse(
             id=record_id, club_id=club_id, file_id=req.file_id,
-            owner_sub=sub, alias=alias, permissions=req.permissions,
-            contributed_by=sub, added_at=now,
+            owner_sub=sub, owner_handle=resolve_handle(sub),
+            alias=alias, permissions=req.permissions,
+            contributed_by=sub, contributed_by_handle=resolve_handle(sub),
+            added_at=now,
         ).model_dump(),
     )
 
@@ -602,12 +623,20 @@ def list_club_files(club_id: str, payload: dict = Depends(require_auth)):
             (club_id,),
         ).fetchall()
 
+    all_subs = set()
+    for r in rows:
+        all_subs.add(r["owner_sub"])
+        all_subs.add(r["contributed_by"])
+    handles = resolve_handles(list(all_subs))
+
     return {
         "files": [
             ClubFileResponse(
                 id=r["id"], club_id=r["club_id"], file_id=r["file_id"],
-                owner_sub=r["owner_sub"], alias=r["alias"], permissions=r["permissions"],
-                contributed_by=r["contributed_by"], added_at=r["added_at"],
+                owner_sub=r["owner_sub"], owner_handle=handles.get(r["owner_sub"]),
+                alias=r["alias"], permissions=r["permissions"],
+                contributed_by=r["contributed_by"], contributed_by_handle=handles.get(r["contributed_by"]),
+                added_at=r["added_at"],
             ).model_dump()
             for r in rows
         ]

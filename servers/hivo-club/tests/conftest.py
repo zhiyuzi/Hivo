@@ -78,6 +78,22 @@ class FakeACL:
         self.grants.add((sub, f"drop:file:{file_id}", action, effect))
 
 
+# ── Fake Identity ────────────────────────────────────────────────────────────
+
+# Map sub -> handle for test purposes
+_FAKE_HANDLES: dict[str, str] = {
+    SUB: "testbot@hivo",
+}
+
+
+def fake_resolve_handle(sub: str) -> str | None:
+    return _FAKE_HANDLES.get(sub)
+
+
+def fake_resolve_handles(subs: list[str]) -> dict[str, str | None]:
+    return {sub: _FAKE_HANDLES.get(sub) for sub in subs}
+
+
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture()
@@ -90,7 +106,9 @@ def client(tmp_path):
          mock.patch("app.db.settings") as db_settings, \
          mock.patch("app.routes.grant_club_access", side_effect=fake_acl.grant_club_access), \
          mock.patch("app.routes.revoke_club_access", side_effect=fake_acl.revoke_club_access), \
-         mock.patch("app.routes.check_file_permission", side_effect=fake_acl.check_file_permission):
+         mock.patch("app.routes.check_file_permission", side_effect=fake_acl.check_file_permission), \
+         mock.patch("app.routes.resolve_handle", side_effect=fake_resolve_handle), \
+         mock.patch("app.routes.resolve_handles", side_effect=fake_resolve_handles):
 
         auth_settings.trusted_issuers_list.return_value = [ISSUER]
         auth_settings.trusted_issuers = ISSUER

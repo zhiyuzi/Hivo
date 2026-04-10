@@ -119,7 +119,8 @@ def client(tmp_path):
          mock.patch("app.routes.make_r2_key", side_effect=lambda iss, sub, path: f"{sub}/{path}"), \
          mock.patch("app.routes.register_owner_grants", side_effect=fake_acl.register_owner_grants), \
          mock.patch("app.routes.check_permission", side_effect=fake_acl.check_permission), \
-         mock.patch("app.routes.revoke_all_grants", side_effect=fake_acl.revoke_all_grants):
+         mock.patch("app.routes.revoke_all_grants", side_effect=fake_acl.revoke_all_grants), \
+         mock.patch("app.routes.resolve_handle", side_effect=lambda sub: HANDLE if sub == SUB else None):
 
         auth_settings.trusted_issuers_list.return_value = [ISSUER]
         db_settings.database_path = db_path

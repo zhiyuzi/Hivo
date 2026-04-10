@@ -38,11 +38,15 @@ Examples:
 				members, _ := result["members"].([]interface{})
 				for _, m := range members {
 					if member, ok := m.(map[string]interface{}); ok {
+						handle, _ := member["handle"].(string)
+						if handle == "" {
+							handle = "-"
+						}
 						displayName, _ := member["display_name"].(string)
 						if displayName == "" {
 							displayName = "-"
 						}
-						fmt.Printf("%s  %-20s  %s\n", member["sub"], displayName, member["role"])
+						fmt.Printf("%s  %-25s  %-20s  %s\n", member["sub"], handle, displayName, member["role"])
 					}
 				}
 			}

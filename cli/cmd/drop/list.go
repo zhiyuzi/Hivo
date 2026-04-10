@@ -64,7 +64,7 @@ Examples:
 					fmt.Println("No files.")
 					return nil
 				}
-				fmt.Printf("%-40s  %-12s  %-10s  %-20s  %s\n", "PATH", "SIZE", "VISIBILITY", "CONTENT_TYPE", "SHARE_URL")
+				fmt.Printf("%-40s  %-20s  %-12s  %-10s  %-20s  %s\n", "PATH", "OWNER_HANDLE", "SIZE", "VISIBILITY", "CONTENT_TYPE", "SHARE_URL")
 				for _, file := range files {
 					shareURL := "-"
 					if file["visibility"] == "public" {
@@ -72,8 +72,12 @@ Examples:
 							shareURL = dropURL() + "/p/" + sid
 						}
 					}
-					fmt.Printf("%-40s  %-12v  %-10v  %-20v  %s\n",
-						file["path"], file["size"], file["visibility"], file["content_type"], shareURL)
+					ownerHandle := "-"
+					if h, ok := file["owner_handle"].(string); ok && h != "" {
+						ownerHandle = h
+					}
+					fmt.Printf("%-40s  %-20s  %-12v  %-10v  %-20v  %s\n",
+						file["path"], ownerHandle, file["size"], file["visibility"], file["content_type"], shareURL)
 				}
 			}
 			return nil

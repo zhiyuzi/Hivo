@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from .acl import check_permission, register_owner_grants, revoke_all_grants
 from .auth import verify_token
 from .config import settings
+from .identity import resolve_handle
 from .db import get_conn
 from .models import FileMetadata, ListEntry, PatchRequest
 from .storage import delete_object, download_object, make_r2_key, upload_object
@@ -287,9 +288,10 @@ async def upload_file(
         file_id = existing["id"]
     else:
         register_owner_grants(token, sub, file_id)
+    handle = resolve_handle(sub)
     return JSONResponse(
         status_code=200 if existing else 201,
-        content={"id": file_id, "path": path, "size": len(data), "sha256": sha256},
+        content={"id": file_id, "path": path, "size": len(data), "sha256": sha256, "owner_handle": handle},
     )
 
 
@@ -435,6 +437,7 @@ def patch_file(
             (visibility, share_id, now, row["id"]),
         )
 
+    handle = resolve_handle(sub)
     return FileMetadata(
         path=path,
         content_type=row["content_type"],
@@ -444,6 +447,7 @@ def patch_file(
         sha256=row["sha256"],
         created_at=row["created_at"],
         updated_at=now,
+        owner_handle=handle,
     )
 
 
@@ -470,6 +474,7 @@ def list_files(
                 (iss, sub),
             ).fetchall()
 
+    handle = resolve_handle(sub)
     return [
         ListEntry(
             path=r["path"],
@@ -478,6 +483,7 @@ def list_files(
             share_id=r["share_id"],
             size=r["size"],
             updated_at=r["updated_at"],
+            owner_handle=handle,
         )
         for r in rows
     ]

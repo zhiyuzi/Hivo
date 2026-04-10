@@ -53,6 +53,7 @@ def test_upload_new_file(client):
     assert body["path"] == "docs/report.html"
     assert body["size"] == len(b"<h1>Hello</h1>")
     assert "sha256" in body
+    assert body["owner_handle"] == HANDLE
 
 
 def test_upload_conflict(client):
@@ -208,6 +209,7 @@ def test_share_public(client):
     assert r.status_code == 200
     share_id = r.json()["share_id"]
     assert share_id is not None
+    assert r.json()["owner_handle"] == HANDLE
 
     # Public access without auth
     r = client.get(f"/p/{share_id}")
@@ -241,6 +243,7 @@ def test_list_files(client):
     for f in files:
         assert "share_id" in f
         assert f["share_id"] is None  # private by default
+        assert f["owner_handle"] == HANDLE
 
 
 def test_list_includes_share_id_for_public_file(client):
@@ -263,6 +266,29 @@ def test_list_with_prefix(client):
     paths = [f["path"] for f in r.json()]
     assert "a/one.txt" in paths
     assert "b/two.txt" not in paths
+
+
+# ── owner_handle ─────────────────────────────────────────────────────────────
+
+def test_upload_owner_handle_null_for_unknown_sub(client):
+    """When resolve_handle returns None, owner_handle should be null."""
+    token = make_token(sub="agt_unknown_xyz")
+    r = client.put(
+        "/files/unknown-handle.txt", content=b"data",
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "text/plain"},
+    )
+    assert r.status_code == 201
+    assert r.json()["owner_handle"] is None
+
+
+def test_list_owner_handle_null_for_unknown_sub(client):
+    token = make_token(sub="agt_unknown_xyz")
+    h = {"Authorization": f"Bearer {token}", "Content-Type": "text/plain"}
+    client.put("/files/unk.txt", content=b"data", headers=h)
+    r = client.get("/list", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    for f in r.json():
+        assert f["owner_handle"] is None
 
 
 # ── Path validation ────────────────────────────────────────────────────────────

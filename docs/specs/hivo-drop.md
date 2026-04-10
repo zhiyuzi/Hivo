@@ -279,14 +279,14 @@ hivo drop delete <remote_path> --dry-run
 ```bash
 hivo drop list [prefix]
 ```
-响应为数组，每项包含 `path`、`content_type`、`visibility`、`share_id`、`size`、`updated_at`。`share_id` 在 `visibility=public` 时为 UUIDv4 字符串，`private` 时为 `null`。
+响应为数组，每项包含 `path`、`content_type`、`visibility`、`share_id`、`size`、`updated_at`、`owner_handle`。`share_id` 在 `visibility=public` 时为 UUIDv4 字符串，`private` 时为 `null`。`owner_handle` 为文件所有者的 handle（如 `writer@acme`），解析失败时为 `null`。
 
 **设置可见性：**
 ```bash
 hivo drop share <remote_path> public|private
 hivo drop share <remote_path> public --dry-run
 ```
-设为 public 时返回 share_id，公开 URL 为 `{drop_url}/p/{share_id}`。
+设为 public 时返回 share_id，公开 URL 为 `{drop_url}/p/{share_id}`。响应中包含 `owner_handle` 字段。
 
 ---
 
@@ -319,4 +319,4 @@ hivo drop share <remote_path> public --dry-run
 
 ### Upload 响应变更
 
-`PUT /files/{path}` 响应增加 `id` 字段：`{id, path, size, sha256}`
+`PUT /files/{path}` 响应增加 `id` 字段：`{id, path, size, sha256, owner_handle}`。`owner_handle` 为文件所有者的 handle，解析失败时为 `null`。

@@ -45,6 +45,7 @@ def test_create_club(client):
     body = _create_club(client)
     assert body["name"] == "Test Club"
     assert body["owner_sub"] == SUB
+    assert body["owner_handle"] == "testbot@hivo"
     assert body["club_id"].startswith("club_")
 
 
@@ -55,6 +56,7 @@ def test_create_club_owner_is_member(client):
     members = r.json()["members"]
     assert len(members) == 1
     assert members[0]["sub"] == SUB
+    assert members[0]["handle"] == "testbot@hivo"
     assert members[0]["role"] == "owner"
 
 
@@ -65,6 +67,7 @@ def test_get_club(client):
     r = client.get(f"/clubs/{body['club_id']}", headers=auth())
     assert r.status_code == 200
     assert r.json()["name"] == "Test Club"
+    assert r.json()["owner_handle"] == "testbot@hivo"
 
 
 def test_get_club_not_found(client):
@@ -89,6 +92,8 @@ def test_invite_member(client):
     r = client.post(f"/clubs/{club_id}/members", json={"sub": "agt_new", "role": "member"}, headers=auth())
     assert r.status_code == 201
     assert r.json()["sub"] == "agt_new"
+    # agt_new is not in fake handles, so handle should be None
+    assert r.json()["handle"] is None
 
     # Verify member appears in list
     r = client.get(f"/clubs/{club_id}/members", headers=auth())
@@ -143,6 +148,7 @@ def test_join_via_link(client):
     assert r.status_code == 201
     assert r.json()["club_id"] == club_id
     assert r.json()["sub"] == "agt_joiner"
+    assert r.json()["handle"] is None  # agt_joiner not in fake handles
 
 
 def test_join_via_link_already_member(client):
@@ -554,6 +560,8 @@ def test_add_file_to_club(client):
     assert data["alias"] == "notes.md"
     assert data["permissions"] == "read"
     assert data["contributed_by"] == SUB
+    assert data["contributed_by_handle"] == "testbot@hivo"
+    assert data["owner_handle"] == "testbot@hivo"
 
 
 def test_add_file_read_write(client):
@@ -738,3 +746,24 @@ def test_dissolve_club_cascades_files(client):
     resource = f"drop:file:{FILE_ID}"
     club_grants = [g for g in client._fake_acl.grants if g[0] == club_id and g[1] == resource]
     assert len(club_grants) == 0
+
+
+# ── Internal: Check Membership ────────────────────────────────────────────────
+
+def test_internal_check_membership_found(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    r = client.get(f"/internal/clubs/{club_id}/members/{SUB}")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["club_id"] == club_id
+    assert data["sub"] == SUB
+    assert data["role"] == "owner"
+
+
+def test_internal_check_membership_not_found(client):
+    body = _create_club(client)
+    club_id = body["club_id"]
+    r = client.get(f"/internal/clubs/{club_id}/members/agt_nonexistent")
+    assert r.status_code == 404
+    assert r.json()["error"] == "not_found"

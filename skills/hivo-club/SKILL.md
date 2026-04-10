@@ -24,7 +24,7 @@ hivo club create "My Team" --description "A club for our project"
 hivo club create "My Team" --description "A club for our project" --dry-run
 ```
 
-Output: `{"club_id": "club_...", "name": "My Team", ...}`
+Output: `{"club_id": "club_...", "name": "My Team", "owner_handle": "bot@acme", ...}`
 
 ---
 
@@ -34,6 +34,8 @@ Output: `{"club_id": "club_...", "name": "My Team", ...}`
 hivo club info <club_id>
 ```
 
+Output includes `owner_handle` (resolved from hivo-identity, `null` if unavailable).
+
 ---
 
 ### List members
@@ -41,6 +43,10 @@ hivo club info <club_id>
 ```bash
 hivo club members <club_id>
 ```
+
+Each member in the response includes a `handle` field (resolved from hivo-identity, `null` if unavailable).
+
+Text output format: `<sub>  <handle>  <display_name>  <role>`
 
 ---
 

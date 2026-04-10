@@ -47,12 +47,14 @@ class ClubResponse(BaseModel):
     name: str
     description: Optional[str]
     owner_sub: str
+    owner_handle: Optional[str] = None
     created_at: str
     updated_at: str
 
 
 class MemberResponse(BaseModel):
     sub: str
+    handle: Optional[str] = None
     role: str
     display_name: Optional[str] = None
     bio: Optional[str] = None
@@ -74,6 +76,7 @@ class InviteLinkResponse(BaseModel):
 class JoinResponse(BaseModel):
     club_id: str
     sub: str
+    handle: Optional[str] = None
     role: str
 
 
@@ -89,7 +92,9 @@ class ClubFileResponse(BaseModel):
     club_id: str
     file_id: str
     owner_sub: str
+    owner_handle: Optional[str] = None
     alias: str
     permissions: str
     contributed_by: str
+    contributed_by_handle: Optional[str] = None
     added_at: str

@@ -49,6 +49,10 @@ Examples:
 					fileID, _ := fm["file_id"].(string)
 					perms, _ := fm["permissions"].(string)
 					owner, _ := fm["owner_sub"].(string)
+					ownerHandle, _ := fm["owner_handle"].(string)
+					if ownerHandle != "" {
+						owner = ownerHandle
+					}
 					fmt.Printf("  %s  (file_id: %s, permissions: %s, owner: %s)\n", alias, fileID, perms, owner)
 				}
 			}

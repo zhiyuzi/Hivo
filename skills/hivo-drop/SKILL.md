@@ -66,9 +66,9 @@ hivo drop list
 hivo drop list docs/
 ```
 
-Text output includes a `SHARE_URL` column. Public files show their full public URL (`https://drop.hivo.ink/p/{share_id}`); private files show `-`.
+Text output includes `OWNER_HANDLE` and `SHARE_URL` columns. Public files show their full public URL (`https://drop.hivo.ink/p/{share_id}`); private files show `-`. `OWNER_HANDLE` shows the file owner's handle (e.g. `writer@acme`), or `-` if unavailable.
 
-JSON output (`--format json`) returns `{"files": [...]}` where each entry includes `share_id` (string for public files, `null` for private). Use this to discover public URLs without an extra `hivo drop share` call.
+JSON output (`--format json`) returns `{"files": [...]}` where each entry includes `share_id` (string for public files, `null` for private) and `owner_handle` (string or `null`). Use this to discover public URLs without an extra `hivo drop share` call.
 
 ---
 

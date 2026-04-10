@@ -35,7 +35,7 @@ Examples:
 				out, _ := json.Marshal(result)
 				fmt.Println(string(out))
 			} else {
-				for _, f := range []string{"club_id", "name", "description", "owner_sub", "created_at"} {
+				for _, f := range []string{"club_id", "name", "description", "owner_sub", "owner_handle", "created_at"} {
 					if v, ok := result[f]; ok && v != nil {
 						fmt.Printf("%-14s %v\n", f+":", v)
 					}

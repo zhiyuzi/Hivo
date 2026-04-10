@@ -11,6 +11,7 @@ class FileMetadata(BaseModel):
     sha256: str
     created_at: str
     updated_at: str
+    owner_handle: Optional[str] = None
 
 
 class PatchRequest(BaseModel):
@@ -24,3 +25,4 @@ class ListEntry(BaseModel):
     share_id: Optional[str]
     size: int
     updated_at: str
+    owner_handle: Optional[str] = None
