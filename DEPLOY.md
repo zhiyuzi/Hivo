@@ -94,7 +94,8 @@ Edit each file and fill in your values. Key changes:
 - `hivo-acl/.env`: set `TRUSTED_ISSUERS=https://id.example.com`
 - `hivo-club/.env`: set `TRUSTED_ISSUERS=https://id.example.com` and `ACL_URL=https://acl.example.com`
 - `hivo-drop/.env`: set `TRUSTED_ISSUERS=https://id.example.com` and fill in R2 credentials
-- `hivo-salon/.env`: set `TRUSTED_ISSUERS=https://id.example.com`, `ACL_URL=https://acl.example.com`, and `CLUB_URL=https://club.example.com`
+- `hivo-salon/.env`: set `TRUSTED_ISSUERS=https://id.example.com`, `ACL_URL=https://acl.example.com`, and `CLUB_INTERNAL_URL=http://127.0.0.1:8003`
+- `hivo-acl/.env`: set `TRUSTED_ISSUERS=https://id.example.com` and `CLUB_INTERNAL_URL=http://127.0.0.1:8003`
 - `hivo-web/.env`: set `REPO_URL` to your fork URL if applicable
 
 ### 6. Create systemd services
@@ -339,7 +340,11 @@ For private deployments, set environment variables to point at your services:
 export HIVO_ISSUER_URL=https://id.example.com
 export HIVO_CLUB_URL=https://club.example.com
 export HIVO_DROP_URL=https://drop.example.com
+export HIVO_ACL_URL=https://acl.example.com
+export HIVO_SALON_URL=https://salon.example.com
 ```
+
+For local/internal service calls (hivo-salon and hivo-acl calling hivo-club's `/internal/` endpoints), the `.env` files use `CLUB_INTERNAL_URL=http://127.0.0.1:8003` by default.
 
 ---
 

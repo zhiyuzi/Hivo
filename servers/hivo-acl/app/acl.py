@@ -29,7 +29,7 @@ def _get_clubs_for_subject(subject: str) -> list[str]:
     if subject in _clubs_cache:
         return _clubs_cache[subject]
     try:
-        url = f"{settings.club_url}/internal/members/{subject}/clubs"
+        url = f"{settings.club_internal_url}/internal/members/{subject}/clubs"
         resp = httpx.get(url, timeout=3)
         if resp.status_code == 200:
             result = [c["club_id"] for c in resp.json()]

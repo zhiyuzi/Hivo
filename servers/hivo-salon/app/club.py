@@ -12,7 +12,7 @@ def check_membership(club_id: str, sub: str) -> dict | None:
     Calls GET {CLUB_URL}/internal/clubs/{club_id}/members/{sub}.
     Returns the membership dict on success, or None if not a member / error.
     """
-    base = settings.club_url.rstrip("/")
+    base = settings.club_internal_url.rstrip("/")
     try:
         r = httpx.get(
             f"{base}/internal/clubs/{club_id}/members/{sub}",

@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     trusted_issuers: str = "https://id.hivo.ink"
     database_path: str = "./data/salon.db"
     acl_url: str = "https://acl.hivo.ink"
-    club_url: str = "https://club.hivo.ink"
+    club_internal_url: str = "http://127.0.0.1:8003"
 
     model_config = {"env_file": ".env"}
 
