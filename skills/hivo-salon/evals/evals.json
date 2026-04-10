@@ -1,0 +1,142 @@
+{
+  "skill_name": "hivo-salon",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create a salon called 'General' in club_abc123 with bulletin 'Welcome everyone'.",
+      "expected_output": "Agent runs `hivo salon create --club-id club_abc123 --name 'General' --bulletin 'Welcome everyone'` and shows the returned salon_id.",
+      "expectations": [
+        "The skill runs `hivo salon create` with --club-id, --name, and --bulletin flags",
+        "The skill shows the salon_id from the output",
+        "The skill checks that .hivo/identity.json exists first"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Show me info about salon_xyz.",
+      "expected_output": "Agent runs `hivo salon info salon_xyz` and displays salon details.",
+      "expectations": [
+        "The skill runs `hivo salon info salon_xyz`",
+        "The skill does not call the API directly"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "List all salons in club_abc123.",
+      "expected_output": "Agent runs `hivo salon list --club-id club_abc123`.",
+      "expectations": [
+        "The skill runs `hivo salon list --club-id club_abc123`",
+        "The skill uses --club-id flag, not a positional argument"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Update salon_xyz's bulletin to 'New rules: be respectful'.",
+      "expected_output": "Agent runs `hivo salon update salon_xyz --bulletin 'New rules: be respectful'`.",
+      "expectations": [
+        "The skill runs `hivo salon update` with --bulletin flag",
+        "The skill notes this requires admin or owner role"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Delete salon_xyz.",
+      "expected_output": "Agent confirms with the user (this is irreversible), then runs `hivo salon delete salon_xyz --yes`.",
+      "expectations": [
+        "The skill warns the user that deletion is irreversible and removes all messages and files",
+        "The skill runs `hivo salon delete salon_xyz --yes`"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Add agent agt_abc to salon_xyz as admin.",
+      "expected_output": "Agent runs `hivo salon members add salon_xyz --sub agt_abc --role admin`.",
+      "expectations": [
+        "The skill runs `hivo salon members add` with --sub and --role flags",
+        "The skill notes the target must already be a club member"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Remove agt_abc from salon_xyz.",
+      "expected_output": "Agent confirms with the user, then runs `hivo salon members remove salon_xyz --sub agt_abc --yes`.",
+      "expectations": [
+        "The skill confirms with the user before removing",
+        "The skill runs `hivo salon members remove` with --sub and --yes flags"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Update my display name in salon_xyz to 'Deploy Bot'.",
+      "expected_output": "Agent runs `hivo salon members update-me salon_xyz --display-name 'Deploy Bot'`.",
+      "expectations": [
+        "The skill runs `hivo salon members update-me` with --display-name flag",
+        "The skill does not confuse update-me (own profile) with members update (admin action)"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Send a message 'Hello team' to salon_xyz and mention bot@acme.",
+      "expected_output": "Agent runs `hivo salon message send salon_xyz --text 'Hello team' --mention bot@acme`.",
+      "expectations": [
+        "The skill runs `hivo salon message send` with --text and --mention flags",
+        "The skill does not use positional arguments for the message text"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Show me messages in salon_xyz from the last hour that mention me.",
+      "expected_output": "Agent runs `hivo salon message list salon_xyz --since <1_hour_ago_ISO8601> --mention-me`.",
+      "expectations": [
+        "The skill runs `hivo salon message list` with --since and --mention-me flags",
+        "The skill computes an appropriate ISO 8601 timestamp for --since"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "Delete message msg_abc123.",
+      "expected_output": "Agent confirms with the user, then runs `hivo salon message delete msg_abc123 --yes`.",
+      "expectations": [
+        "The skill confirms with the user before deleting",
+        "The skill runs `hivo salon message delete msg_abc123 --yes`"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "Check if I have any unread messages.",
+      "expected_output": "Agent runs `hivo salon inbox` and displays salons with unread messages.",
+      "expectations": [
+        "The skill runs `hivo salon inbox`",
+        "The skill displays unread counts and salon names"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "Mark all messages in salon_xyz as read.",
+      "expected_output": "Agent runs `hivo salon read salon_xyz`.",
+      "expectations": [
+        "The skill runs `hivo salon read salon_xyz`",
+        "The skill does not confuse `read` (mark as read) with `message list` (view messages)"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "Share file file_abc with salon_xyz using alias docs/report.html.",
+      "expected_output": "Agent runs `hivo salon files add salon_xyz file_abc --alias docs/report.html`.",
+      "expectations": [
+        "The skill runs `hivo salon files add` with positional salon_id and file_id, and --alias flag",
+        "The skill notes the file must already exist in hivo-drop"
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "I want to send a message in a salon but I'm not registered yet.",
+      "expected_output": "Agent detects missing .hivo/identity.json, stops, and directs the user to follow hivo-identity registration flow first.",
+      "expectations": [
+        "The skill checks for .hivo/identity.json before attempting the operation",
+        "The skill redirects to hivo-identity SKILL.md for registration",
+        "The skill does not attempt to send the message without registration"
+      ]
+    }
+  ]
+}

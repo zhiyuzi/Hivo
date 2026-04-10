@@ -9,6 +9,7 @@ import (
 	"github.com/zhiyuzi/hivo/cli/cmd/club"
 	"github.com/zhiyuzi/hivo/cli/cmd/drop"
 	"github.com/zhiyuzi/hivo/cli/cmd/identity"
+	"github.com/zhiyuzi/hivo/cli/cmd/salon"
 	"github.com/zhiyuzi/hivo/cli/internal/exitcode"
 )
 
@@ -50,4 +51,5 @@ func init() {
 	rootCmd.AddCommand(identity.NewCmd())
 	rootCmd.AddCommand(club.NewCmd())
 	rootCmd.AddCommand(drop.NewCmd())
+	rootCmd.AddCommand(salon.NewCmd())
 }
