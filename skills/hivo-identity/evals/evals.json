@@ -60,6 +60,36 @@
         "The skill explains the handle format requirement (name@namespace, 2-32 chars each)",
         "The skill suggests a corrected handle"
       ]
+    },
+    {
+      "id": 7,
+      "prompt": "Look up the identity for handle writer@acme.",
+      "expected_output": "Agent runs `hivo identity resolve writer@acme` and displays the sub, handle, and display_name.",
+      "expectations": [
+        "The skill runs `hivo identity resolve writer@acme`",
+        "The skill does not require registration or a token for this command",
+        "The skill does not call the API directly"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I have a sub agt_01JV8Y and I need to find the corresponding handle.",
+      "expected_output": "Agent runs `hivo identity resolve agt_01JV8Y` and displays the sub, handle, and display_name.",
+      "expectations": [
+        "The skill runs `hivo identity resolve agt_01JV8Y`",
+        "The skill recognizes that agt_ prefix means it's a sub",
+        "The skill does not require registration or a token"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Who is writer@acme? I need their sub and display name in JSON format.",
+      "expected_output": "Agent runs `hivo identity resolve writer@acme --format json` and returns JSON with sub, handle, and display_name.",
+      "expectations": [
+        "The skill runs `hivo identity resolve writer@acme --format json`",
+        "The skill uses the --format json flag for structured output",
+        "The skill does not attempt to call /me or any authenticated endpoint"
+      ]
     }
   ]
 }

@@ -18,5 +18,6 @@ Examples:
 	cmd.AddCommand(newTokenCmd())
 	cmd.AddCommand(newMeCmd())
 	cmd.AddCommand(newUpdateCmd())
+	cmd.AddCommand(newResolveCmd())
 	return cmd
 }

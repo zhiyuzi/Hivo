@@ -157,3 +157,42 @@ def test_readme_markdown(client):
     """README.md route was removed; verify 404."""
     r = client.get("/README.md")
     assert r.status_code == 404
+
+
+# ── /resolve ─────────────────────────────────────────────────────────────────
+
+def test_resolve_by_handle(client, registered_agent):
+    sub, handle, _ = registered_agent
+    r = client.get("/resolve", params={"handle": handle})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["sub"] == sub
+    assert data["handle"] == handle
+
+
+def test_resolve_by_sub(client, registered_agent):
+    sub, handle, _ = registered_agent
+    r = client.get("/resolve", params={"sub": sub})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["sub"] == sub
+    assert data["handle"] == handle
+
+
+def test_resolve_neither(client):
+    r = client.get("/resolve")
+    assert r.status_code == 422
+    assert r.json()["error"] == "validation_error"
+
+
+def test_resolve_both(client, registered_agent):
+    sub, handle, _ = registered_agent
+    r = client.get("/resolve", params={"handle": handle, "sub": sub})
+    assert r.status_code == 422
+    assert r.json()["error"] == "validation_error"
+
+
+def test_resolve_not_found(client):
+    r = client.get("/resolve", params={"handle": "nobody@nowhere"})
+    assert r.status_code == 404
+    assert r.json()["error"] == "not_found"

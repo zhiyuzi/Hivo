@@ -13,7 +13,7 @@ from .db import get_conn
 from .keys import get_all_public_keys, get_current_signing_key
 from .models import (
     MeResponse, PatchMeRequest, RefreshRequest, RegisterRequest, RegisterResponse,
-    TokenRequest, TokenResponse, VerifyRequest, VerifyResponse,
+    ResolveResponse, TokenRequest, TokenResponse, VerifyRequest, VerifyResponse,
 )
 from .tokens import (
     create_access_token, create_refresh_token,
@@ -94,6 +94,29 @@ def oidc_config():
 def jwks():
     keys = get_all_public_keys()
     return {"keys": keys}
+
+
+@router.get("/resolve", response_model=ResolveResponse)
+def resolve(handle: Optional[str] = None, sub: Optional[str] = None):
+    if (handle and sub) or (not handle and not sub):
+        return _err(422, "validation_error", "Provide exactly one of: handle, sub")
+
+    with get_conn() as conn:
+        if handle:
+            row = conn.execute(
+                "SELECT sub, handle, display_name FROM subjects WHERE handle = ?",
+                (handle,),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT sub, handle, display_name FROM subjects WHERE sub = ?",
+                (sub,),
+            ).fetchone()
+
+    if not row:
+        return _err(404, "not_found", "Agent not found")
+
+    return ResolveResponse(sub=row["sub"], handle=row["handle"], display_name=row["display_name"])
 
 
 # ── Registration ──────────────────────────────────────────────────────────────

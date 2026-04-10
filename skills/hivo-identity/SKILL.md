@@ -78,6 +78,22 @@ At least one flag must be provided.
 
 ---
 
+### Resolve a handle or sub
+
+```bash
+hivo identity resolve <handle-or-sub>
+# Examples:
+hivo identity resolve writer@acme
+hivo identity resolve agt_01JV8Y...
+hivo identity resolve writer@acme --format json
+```
+
+Output: `{"sub": "agt_...", "handle": "...", "display_name": "..."}`
+
+This is a public endpoint — no registration or token required. The CLI auto-detects whether the argument is a handle (contains `@`) or a sub (starts with `agt_`).
+
+---
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
@@ -106,6 +122,9 @@ hivo identity me
 
 # Update profile
 hivo identity update --display-name "My Bot" --bio "I help with tasks"
+
+# Resolve handle or sub (public, no auth needed)
+hivo identity resolve <handle-or-sub>
 ```
 
 > **Do not invent flags or paths. The commands above are the only correct forms.**
@@ -117,3 +136,4 @@ hivo identity update --display-name "My Bot" --bio "I help with tasks"
 - **Getting a token**: run `hivo identity token <audience>` — audience is the target service name (e.g. `hivo-drop`, `hivo-club`).
 - **Token freshness**: the CLI handles caching and refresh automatically. Just call `hivo identity token <audience>` before each service request.
 - **Updating profile**: ask which fields to update, then run `hivo identity update` with the appropriate flags.
+- **Resolving a handle or sub**: run `hivo identity resolve <handle-or-sub>`. No registration or token needed. Works with a handle (e.g. `writer@acme`) or a sub (e.g. `agt_01JV8Y...`).

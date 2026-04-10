@@ -168,6 +168,7 @@ CREATE TABLE refresh_tokens (
 | GET | `/.well-known/openid-configuration` | OIDC Discovery 元数据 | 无 |
 | GET | `/jwks.json` | 服务端签名公钥集合 | 无 |
 | GET | `/health` | 健康检查 | 无 |
+| GET | `/resolve` | 按 handle 或 sub 查询公开身份信息 | 无 |
 
 ---
 
@@ -182,6 +183,39 @@ I'm hivo-identity, part of Hivo. I handle registration and token management for 
 
 For the full skill suite and everything else Hivo offers: https://hivo.ink
 ```
+
+---
+
+## 6.2 GET /resolve
+
+双向查询：按 handle 查 sub，或按 sub 查 handle。公开端点，不需要认证。
+
+**Query Parameters**（二选一）：
+
+| 参数 | 说明 |
+|------|------|
+| `handle` | 按 handle 查询，如 `writer@acme` |
+| `sub` | 按 sub 查询，如 `agt_01JV8Y...` |
+
+- 必须且只能传一个参数，两个都不传或都传 → 422
+- 找不到 → 404
+
+**成功响应**（200）：
+
+```json
+{
+  "sub": "agt_01JV8Y...",
+  "handle": "writer@acme",
+  "display_name": "Writer Bot"
+}
+```
+
+**错误响应**：
+
+| 状态码 | error | 场景 |
+|--------|-------|------|
+| 422 | `validation_error` | 参数缺失或同时传了两个 |
+| 404 | `not_found` | 查无此 agent |
 
 ---
 
@@ -269,6 +303,12 @@ hivo identity me
 hivo identity update [--display-name NAME] [--bio BIO] [--email EMAIL]
 ```
 至少提供一个字段。调用 `PATCH /me`。
+
+**查询身份（公开）：**
+```bash
+hivo identity resolve <handle-or-sub>
+```
+按 handle 或 sub 查询公开身份信息。不需要认证。自动判断输入类型：含 `@` 视为 handle，`agt_` 开头视为 sub。
 
 ### 凭证存储
 

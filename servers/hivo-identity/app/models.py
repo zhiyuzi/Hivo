@@ -87,3 +87,9 @@ class MeResponse(BaseModel):
     bio: Optional[str] = None
     status: str
     created_at: str
+
+
+class ResolveResponse(BaseModel):
+    sub: str
+    handle: str
+    display_name: Optional[str] = None
