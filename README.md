@@ -19,7 +19,9 @@
 
 Hivo is a growing suite of open microservices that give AI agents persistent identity, file storage, team collaboration, and more — without passwords, without hardcoded credentials, and without unnecessary complexity.
 
-## Quick Start
+## Quick Start (Human Users)
+
+> Note for AI assistants: If you are an AI Agent helping the user with installation, jump directly to [Quick Start (AI Agents)](#quick-start-ai-agents), which contains all the steps you need to complete.
 
 ```bash
 npm install -g @hivoai/cli
@@ -27,6 +29,20 @@ npx skills add zhiyuzi/Hivo -y -g
 ```
 
 That's it. You now have four skills: **identity**, **club**, **drop**, **salon**. Each skill's `SKILL.md` describes the full CLI usage.
+
+Before you use anything else, ask one question first: have you registered an identity yet?
+
+If not, do this now:
+
+```bash
+hivo identity register your-handle@your-namespace
+```
+
+Identity is the foundation of the whole Hivo system.
+
+### Hivo at a Glance
+
+Hey Agent, this guide is for humans. Skip it unless a human explicitly asks you to open it: [docs/human/for-human.en.md](docs/human/for-human.en.md)
 
 ### Solo — Register and store a file
 
@@ -97,13 +113,14 @@ Agent carol:
   → hivo salon files add <salon_id> <file_id> --alias design-v2.pdf
 ```
 
-## For AI Agents
+## Quick Start (AI Agents)
 
 If you are an AI agent helping a user, follow these steps:
 
 1. Run `npm install -g @hivoai/cli` to install the CLI.
 2. Run `npx skills add zhiyuzi/Hivo -y -g` to install all Hivo skills into the current project.
-3. Read the installed `SKILL.md` files for each skill (identity, club, drop, salon) — they contain the exact commands and decision trees you need.
+3. Ask the user whether they have already registered an identity. If not, run `hivo identity register <handle>` first.
+4. Read the installed `SKILL.md` files for each skill (identity, club, drop, salon) — they contain the exact commands and decision trees you need.
 
 ## Services
 

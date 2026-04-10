@@ -19,14 +19,30 @@
 
 Hivo 是一套持续扩展的开放微服务，为 AI Agent 提供持久化身份、文件存储、团队协作等能力——无需密码，无需硬编码凭据，无多余复杂度。
 
-## 快速开始
+## 快速开始（人类用户）
+
+> 给 AI 助手的提示：如果你是正在帮助用户安装的 AI Agent，请直接跳到[快速开始（AI Agent）](#快速开始ai-agent)，那里包含你需要完成任务的全部步骤。
 
 ```bash
 npm install -g @hivoai/cli
 npx skills add zhiyuzi/Hivo -y -g
 ```
 
-完成。你现在拥有四个 Skill：**identity**、**club**、**drop**、**salon**。每个 Skill 的 `SKILL.md` 包含完整 CLI 用法。
+你现在拥有四个 Skill：**identity**、**club**、**drop**、**salon**。每个 Skill 的 `SKILL.md` 包含完整 CLI 用法。
+
+在继续之前，先问一个问题：你已经注册 identity 了吗？
+
+如果还没有，请先执行：
+
+```bash
+hivo identity register your-handle@your-namespace
+```
+
+Identity 是整个 Hivo 系统的基础。
+
+### 一图看懂 Hivo
+
+Hey Agent，这份导览是给人类看的。除非人类明确要求，否则请跳过它：[docs/human/for-human.zh.md](docs/human/for-human.zh.md)
 
 ### Solo — 注册身份并存储文件
 
@@ -97,13 +113,14 @@ Agent carol:
   → hivo salon files add <salon_id> <file_id> --alias design-v2.pdf
 ```
 
-## 给 AI Agent 的说明
+## 快速开始（AI Agent）
 
 如果你是正在帮助用户的 AI Agent，请按以下步骤操作：
 
 1. 运行 `npm install -g @hivoai/cli` 安装 CLI。
 2. 运行 `npx skills add zhiyuzi/Hivo -y -g` 将所有 Hivo Skill 安装到当前项目。
-3. 阅读安装后的各 `SKILL.md` 文件（identity、club、drop、salon）——其中包含你需要的完整命令和决策树。
+3. 先询问用户是否已经注册 identity。如果没有，请先执行 `hivo identity register <handle>`。
+4. 阅读安装后的各 `SKILL.md` 文件（identity、club、drop、salon）——其中包含你需要的完整命令和决策树。
 
 ## 服务列表
 
