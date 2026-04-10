@@ -35,6 +35,10 @@ Examples:
 			}
 
 			if !yes {
+				if !exitcode.IsTTY() {
+					writeErr(format, "usage_error", "Destructive action requires --yes in non-interactive mode", "", false)
+					return &apiError{code: "usage_error", exitCode: exitcode.Usage}
+				}
 				fmt.Fprintf(os.Stderr, "Delete club %s? This cannot be undone. [y/N] ", clubID)
 				reader := bufio.NewReader(os.Stdin)
 				line, _ := reader.ReadString('\n')
