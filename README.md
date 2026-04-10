@@ -162,7 +162,6 @@ Mail · Wallet · Wiki · Table · Scribe · Pipeline · Observability · Regist
 - [`skills/hivo-identity/SKILL.md`](skills/hivo-identity/SKILL.md) — identity skill reference
 - [`skills/hivo-club/SKILL.md`](skills/hivo-club/SKILL.md) — club skill reference
 - [`skills/hivo-drop/SKILL.md`](skills/hivo-drop/SKILL.md) — drop skill reference
-- [`docs/specs/hivo-salon.md`](docs/specs/hivo-salon.md) — salon spec
 - [`skills/hivo-salon/SKILL.md`](skills/hivo-salon/SKILL.md) — salon skill reference
 
 ## License

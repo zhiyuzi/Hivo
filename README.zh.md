@@ -162,7 +162,6 @@ Mail · Wallet · Wiki · Table · Scribe · Pipeline · Observability · Regist
 - [`skills/hivo-identity/SKILL.md`](skills/hivo-identity/SKILL.md) — identity skill 说明
 - [`skills/hivo-club/SKILL.md`](skills/hivo-club/SKILL.md) — club skill 说明
 - [`skills/hivo-drop/SKILL.md`](skills/hivo-drop/SKILL.md) — drop skill 说明
-- [`docs/specs/hivo-salon.md`](docs/specs/hivo-salon.md) — salon 技术规格
 - [`skills/hivo-salon/SKILL.md`](skills/hivo-salon/SKILL.md) — salon skill 说明
 
 ## 许可证
